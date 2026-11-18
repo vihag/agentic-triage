@@ -7,7 +7,12 @@ WORKDIR /app
 
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin app
 
-COPY --chown=app:app worker.py .
+COPY db /src/db
+COPY services/agent /src/services/agent
+COPY contracts /src/contracts
+RUN pip install --no-cache-dir /src/db /src/services/agent
+
+COPY --chown=app:app services/worker/worker.py services/worker/case_from_decision.py services/worker/fixtures.py ./
 
 USER app
 EXPOSE 8081

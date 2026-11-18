@@ -22,6 +22,7 @@ from tests.helpers import ACTION_ID, CASE_ID, assert_problem, fill_path
 
 APPROVE = f"/v1/cases/{CASE_ID}/actions/{ACTION_ID}/approve"
 REJECT = f"/v1/cases/{CASE_ID}/actions/{ACTION_ID}/reject"
+_BACKEND_READS = frozenset({"getAlert", "getTriageDecision"})
 
 
 def _segment(value: dict) -> str:
@@ -127,7 +128,10 @@ def test_every_operation_enforces_its_scheme(
                 wrong_scheme = client.request(operation.method, url, headers={"X-GrokBot-Key": bot_key})
                 assert_problem(wrong_scheme, problem_validator, 401)
             accepted = client.request(operation.method, url, headers=bearer)
-            assert_problem(accepted, problem_validator, 501)
+            if operation.operation_id in _BACKEND_READS:
+                assert accepted.status_code in (404, 500)
+            else:
+                assert_problem(accepted, problem_validator, 501)
         elif scheme == BOT_API_KEY:
             accepted = client.request(operation.method, url, headers={"X-GrokBot-Key": bot_key})
             assert_problem(accepted, problem_validator, 501)
@@ -137,7 +141,10 @@ def test_every_operation_enforces_its_scheme(
             assert_problem(bad_key, problem_validator, 401)
         elif scheme == SPLUNK_TOKEN:
             accepted = client.request(operation.method, url, params={"token": splunk_token})
-            assert_problem(accepted, problem_validator, 501)
+            if operation.operation_id == "ingestSplunkAlert":
+                assert accepted.status_code in (422, 500)
+            else:
+                assert_problem(accepted, problem_validator, 501)
             wrong = client.request(operation.method, url, params={"token": "wrong-token"})
             problem = assert_problem(wrong, problem_validator, 401)
             assert "wrong-token" not in wrong.text

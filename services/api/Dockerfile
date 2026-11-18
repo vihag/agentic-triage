@@ -7,10 +7,14 @@ WORKDIR /app
 
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY db /src/db
+COPY services/agent /src/services/agent
+COPY contracts /src/contracts
+COPY services/api/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir /src/db /src/services/agent
 
-COPY --chown=app:app app ./app
+COPY --chown=app:app services/api/app ./app
 
 USER app
 EXPOSE 8080

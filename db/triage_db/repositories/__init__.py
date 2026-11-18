@@ -1,11 +1,17 @@
 """Repositories that persist JSON Schema documents and the ER columns."""
 
 from triage_db.repositories.actions import get_action, save_action
-from triage_db.repositories.alerts import get_alert, get_raw, save_alert, save_webhook_payload
+from triage_db.repositories.alerts import (
+    find_alert_by_sid,
+    get_alert,
+    get_raw,
+    save_alert,
+    save_webhook_payload,
+)
 from triage_db.repositories.audit_events import get_audit_event, save_audit_event
 from triage_db.repositories.bundles import compose_case_bundle
 from triage_db.repositories.cases import get_case, save_case
-from triage_db.repositories.decisions import get_decision, save_decision
+from triage_db.repositories.decisions import get_decision, get_decision_for_alert, save_decision
 from triage_db.repositories.evidence import get_evidence_pack, save_evidence_pack
 from triage_db.repositories.next_steps import get_next_steps_pack, save_next_steps_pack
 from triage_db.repositories.reference import (
@@ -28,7 +34,9 @@ __all__ = [
     "get_alert",
     "get_audit_event",
     "get_case",
+    "find_alert_by_sid",
     "get_decision",
+    "get_decision_for_alert",
     "get_evidence_pack",
     "get_next_steps_pack",
     "get_raw",
