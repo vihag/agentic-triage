@@ -12,9 +12,12 @@ from simulator.library import BURST_RECIPE, BURST_SIZE, SCENARIOS, iter_messages
 from simulator.send import build_ingest_url, post_webhook, redact_url
 from simulator.validate import find_schema, validate_messages
 
-_TOKEN_ENV = "SPLUNK_INGEST_TOKEN"
-_BASE_URL_ENV = "TRIAGE_BASE_URL"
+# Compose (T01) sets the first name in each pair. The second name is the
+# original simulator name. Either works. Both set to different values is an error.
+_TOKEN_ENVS = ("SPLUNK_WEBHOOK_TOKEN", "SPLUNK_INGEST_TOKEN")
+_BASE_URL_ENVS = ("TRIAGE_API_URL", "TRIAGE_BASE_URL")
 _INSTANCE_ENV = "SPLUNK_INSTANCE"
+_DEFAULT_BASE_URL = "http://localhost:8080"
 _DRY_RUN_TOKEN = "DRY-RUN"
 
 
@@ -27,7 +30,7 @@ def _parser() -> argparse.ArgumentParser:
             "examples:\n"
             "  simulator list\n"
             "  simulator send credential-stuffing --dry-run --token dev\n"
-            "  simulator send burst --base-url http://localhost:8080 --token \"$SPLUNK_INGEST_TOKEN\"\n"
+            "  simulator send burst --base-url http://localhost:8080 --token \"$SPLUNK_WEBHOOK_TOKEN\"\n"
         ),
     )
     sub = parser.add_subparsers(dest="command", required=True)
@@ -41,8 +44,8 @@ def _parser() -> argparse.ArgumentParser:
     )
     send.add_argument(
         "--base-url",
-        default=os.environ.get(_BASE_URL_ENV, "http://localhost:8080"),
-        help=f"API origin (default: ${_BASE_URL_ENV} or http://localhost:8080)",
+        default=None,
+        help="API origin (default: $TRIAGE_API_URL or $TRIAGE_BASE_URL, else http://localhost:8080)",
     )
     send.add_argument(
         "--instance",
@@ -52,7 +55,7 @@ def _parser() -> argparse.ArgumentParser:
     send.add_argument(
         "--token",
         default=None,
-        help=f"splunkToken query value (default: ${_TOKEN_ENV})",
+        help="splunkToken query value (default: $SPLUNK_WEBHOOK_TOKEN or $SPLUNK_INGEST_TOKEN)",
     )
     send.add_argument(
         "--severity",
@@ -87,23 +90,48 @@ def _cmd_list() -> int:
     return 0
 
 
+def _env_choice(names: tuple[str, ...]) -> str | None:
+    """Return the shared value of ``names``. Unset names are skipped.
+
+    Two names set to different strings is a configuration error. The values
+    are not included in the message, because one of the pairs is the ingest token.
+    """
+    present = [(name, os.environ[name]) for name in names if os.environ.get(name)]
+    if not present:
+        return None
+    if len({value for _name, value in present}) > 1:
+        joined = " and ".join(name for name, _value in present)
+        raise SimulatorError(f"{joined} are both set and disagree; set only one")
+    return present[0][1]
+
+
+def _base_url(args: argparse.Namespace) -> str:
+    if args.base_url is not None:
+        return args.base_url
+    return _env_choice(_BASE_URL_ENVS) or _DEFAULT_BASE_URL
+
+
 def _token(args: argparse.Namespace) -> str:
-    token = args.token if args.token is not None else os.environ.get(_TOKEN_ENV)
+    if args.token is not None:
+        return args.token
+    token = _env_choice(_TOKEN_ENVS)
     if token:
         return token
+    names = " or ".join(_TOKEN_ENVS)
     if args.dry_run:
         print(
-            f"dry-run: {_TOKEN_ENV} unset; URL uses placeholder {_DRY_RUN_TOKEN}",
+            f"dry-run: {' and '.join(_TOKEN_ENVS)} unset; URL uses placeholder {_DRY_RUN_TOKEN}",
             file=sys.stderr,
         )
         return _DRY_RUN_TOKEN
-    raise SimulatorError(f"{_TOKEN_ENV} is required (or pass --token)")
+    raise SimulatorError(f"{names} is required (or pass --token)")
 
 
 def _cmd_send(args: argparse.Namespace) -> int:
     if args.timeout <= 0:
         raise SimulatorError("--timeout must be positive")
     messages = iter_messages(args.scenario)
+    base_url = _base_url(args)
     token = _token(args)
     validate_messages(messages, find_schema())
     for message in messages:
@@ -112,7 +140,7 @@ def _cmd_send(args: argparse.Namespace) -> int:
             raise SimulatorError(
                 f"{message.scenario}: result.severity is not 1-6; pass --severity"
             )
-        url = build_ingest_url(args.base_url, args.instance, token, severity)
+        url = build_ingest_url(base_url, args.instance, token, severity)
         status: int | None
         if args.dry_run:
             status = None

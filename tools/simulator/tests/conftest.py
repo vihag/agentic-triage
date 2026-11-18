@@ -29,5 +29,12 @@ def schema_path(repo_root: Path) -> Path:
 
 @pytest.fixture(autouse=True)
 def _clear_ingest_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for key in ("SPLUNK_INGEST_TOKEN", "TRIAGE_BASE_URL", "SPLUNK_INSTANCE", "SPLUNK_WEBHOOK_SCHEMA"):
+    for key in (
+        "SPLUNK_INGEST_TOKEN",
+        "SPLUNK_WEBHOOK_TOKEN",
+        "TRIAGE_BASE_URL",
+        "TRIAGE_API_URL",
+        "SPLUNK_INSTANCE",
+        "SPLUNK_WEBHOOK_SCHEMA",
+    ):
         monkeypatch.delenv(key, raising=False)

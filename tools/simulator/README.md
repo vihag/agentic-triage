@@ -28,21 +28,23 @@ The request body is the scenario file's bytes. Burst mode copies a template and 
 # from a checkout. `make contracts` creates .venv; the wrapper uses it when present.
 tools/simulator/simulator list
 tools/simulator/simulator send credential-stuffing --dry-run --token dev
-SPLUNK_INGEST_TOKEN=dev tools/simulator/simulator send burst
+SPLUNK_WEBHOOK_TOKEN=dev tools/simulator/simulator send burst
 ```
 
 `pip install -e tools/simulator` also installs a `simulator` entry point (`python -m simulator` works with `PYTHONPATH=tools/simulator/src`).
 
 | Flag / env | Default | Role |
 |---|---|---|
-| `--base-url` / `TRIAGE_BASE_URL` | `http://localhost:8080` | API origin. The tool appends `/v1/ingest/splunk/{instance}`. |
+| `--base-url` / `TRIAGE_API_URL` or `TRIAGE_BASE_URL` | `http://localhost:8080` | API origin. The tool appends `/v1/ingest/splunk/{instance}`. |
 | `--instance` / `SPLUNK_INSTANCE` | `splunk-onprem-sg1` | Path parameter. Matches the alert examples. |
-| `--token` / `SPLUNK_INGEST_TOKEN` | required to send | `splunkToken` query parameter. Printed URLs show `token=REDACTED`. |
+| `--token` / `SPLUNK_WEBHOOK_TOKEN` or `SPLUNK_INGEST_TOKEN` | required to send | `splunkToken` query parameter. Printed URLs show `token=REDACTED`. |
 | `--severity` | `result.severity` | Query override (1-6). The body stays the scenario bytes. |
 | `--dry-run` | off | Validate and print the requests. No socket. |
 | `SPLUNK_WEBHOOK_SCHEMA` | walk up to `contracts/schemas/splunk-webhook.schema.json` | Schema used before send. |
 
 HTTP 202 (accepted) and 200 (duplicate `sid`) are success. Any other status stops the command; alerts already accepted stay accepted. Redirects are not followed.
+
+Compose names from T01 are `TRIAGE_API_URL` and `SPLUNK_WEBHOOK_TOKEN`. `TRIAGE_BASE_URL` and `SPLUNK_INGEST_TOKEN` are accepted as the same settings. A flag wins over the environment. If both names in a pair are set to different values, send stops and does not print the values.
 
 ## Tests
 
@@ -56,4 +58,4 @@ The suite validates every named scenario and every burst payload against the web
 
 ## Compose
 
-This package does not wire itself into `docker-compose.yml` (DevOps, T01). It is an on-demand command, not a long-running service. A container image needs this directory plus the webhook schema (`SPLUNK_WEBHOOK_SCHEMA`), `TRIAGE_BASE_URL`, `SPLUNK_INSTANCE`, and `SPLUNK_INGEST_TOKEN`.
+This package does not wire itself into `docker-compose.yml` (DevOps, T01). It is an on-demand command, not a long-running service. A container image needs this directory plus the webhook schema (`SPLUNK_WEBHOOK_SCHEMA`). Compose already supplies `TRIAGE_API_URL=http://api:8080` and `SPLUNK_WEBHOOK_TOKEN`.
