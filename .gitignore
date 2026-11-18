@@ -4,3 +4,10 @@ __pycache__/
 node_modules/
 .env
 docs/rendered/*.mmd
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+*.tsbuildinfo
