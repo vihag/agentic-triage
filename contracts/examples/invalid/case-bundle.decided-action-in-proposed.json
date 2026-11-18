@@ -1,0 +1,308 @@
+{
+  "case": {
+    "case_id": "22222222-2222-4222-8222-222222222222",
+    "alert_ids": [
+      "11111111-1111-4111-8111-111111111111"
+    ],
+    "decision_id": "33333333-3333-4333-8333-333333333333",
+    "title": "Excessive Failed Logins Followed By Success: jdoe from 203.0.113.45",
+    "severity": "high",
+    "original_severity": "medium",
+    "direction": "escalated",
+    "status": "claimed",
+    "queue": "soc-high",
+    "priority": 85,
+    "assignee": "analyst-priya",
+    "claimed_by": {
+      "type": "grok_bot",
+      "id": "grokbot-priya",
+      "on_behalf_of": "analyst-priya"
+    },
+    "lease_expires_at": "2026-11-18T02:55:00Z",
+    "candidate_labels": [
+      {
+        "name": "candidate:credential-stuffing",
+        "source": "rule",
+        "confidence": 0.9
+      },
+      {
+        "name": "candidate:account-takeover",
+        "source": "fuzzy",
+        "confidence": 0.78
+      }
+    ],
+    "evidence_pack_id": "44444444-4444-4444-8444-444444444444",
+    "next_steps_pack_id": "55555555-5555-4555-8555-555555555555",
+    "pending_action_count": 1,
+    "resolution": null,
+    "created_at": "2026-11-18T02:40:15Z",
+    "updated_at": "2026-11-18T02:50:00Z",
+    "version": 3
+  },
+  "decision": {
+    "decision_id": "33333333-3333-4333-8333-333333333333",
+    "alert_id": "11111111-1111-4111-8111-111111111111",
+    "case_id": "22222222-2222-4222-8222-222222222222",
+    "decided_at": "2026-11-18T02:40:15Z",
+    "agent_version": "triage-agent/0.1.0",
+    "original_severity": "medium",
+    "rule_severity": "high",
+    "final_severity": "high",
+    "direction": "escalated",
+    "disposition": "enqueue_for_triage",
+    "confidence": 0.86,
+    "candidate_labels": [
+      {
+        "name": "candidate:credential-stuffing",
+        "source": "rule",
+        "confidence": 0.9
+      },
+      {
+        "name": "candidate:account-takeover",
+        "source": "fuzzy",
+        "confidence": 0.78
+      }
+    ],
+    "rule_results": [
+      {
+        "rule_id": "AUTH-003-fail-then-success-external",
+        "rule_version": "1.2.0",
+        "matched": true,
+        "effect": {
+          "op": "floor",
+          "severity": "high"
+        },
+        "labels": [
+          "candidate:credential-stuffing"
+        ],
+        "rationale": "57 failures then 1 success for the same user from a non-corporate IP within 10 minutes.",
+        "evidence_refs": [
+          "ev-raw-1"
+        ]
+      },
+      {
+        "rule_id": "ALLOW-007-known-scanner",
+        "rule_version": "1.0.0",
+        "matched": false,
+        "effect": {
+          "op": "none"
+        },
+        "rationale": "Source IP not in scanner allow-list."
+      }
+    ],
+    "fuzzy_result": {
+      "matcher_id": "pgvector-knn+llm-judge",
+      "model": "embed:text-embedding-small / llm:grok-judge",
+      "similar_items": [
+        {
+          "ref_type": "past_incident",
+          "ref_id": "INC-2041",
+          "similarity": 0.91,
+          "verified_severity": "high",
+          "verdict": "true_positive",
+          "summary": "Credential stuffing against VPN, one account compromised."
+        },
+        {
+          "ref_type": "benign_baseline",
+          "ref_id": "BASE-12",
+          "similarity": 0.42,
+          "verified_severity": "low",
+          "verdict": "benign_true_positive",
+          "summary": "User forgot password after reset."
+        }
+      ],
+      "suggested_severity": "high",
+      "suggested_labels": [
+        "candidate:account-takeover"
+      ],
+      "confidence": 0.82,
+      "rationale": "Closest neighbour is a confirmed credential-stuffing incident; volume and external source are inconsistent with a forgotten password."
+    },
+    "policy": {
+      "policy_id": "severity-routing",
+      "version": "2026-11-18",
+      "rationale": "Escalated medium->high: rule floor=high, fuzzy agrees (0.82 >= 0.75). Escalations always go to the human queue.",
+      "guardrails_triggered": []
+    },
+    "latency_ms": 1840
+  },
+  "evidence_pack": {
+    "evidence_pack_id": "44444444-4444-4444-8444-444444444444",
+    "case_id": "22222222-2222-4222-8222-222222222222",
+    "alert_id": "11111111-1111-4111-8111-111111111111",
+    "version": 2,
+    "generated_at": "2026-11-18T02:40:15Z",
+    "generated_by": {
+      "type": "triage_agent",
+      "id": "triage-agent/0.1.0"
+    },
+    "summary": "57 failed VPN logins for jdoe from 203.0.113.45 (AS64500, hosting provider) followed by one success. Pattern matches confirmed incident INC-2041.",
+    "entities": {
+      "users": [
+        "jdoe"
+      ],
+      "src_ips": [
+        "203.0.113.45"
+      ],
+      "hosts": [
+        "vpn-gw-01"
+      ]
+    },
+    "items": [
+      {
+        "evidence_id": "ev-raw-1",
+        "kind": "raw_event",
+        "title": "Triggering Splunk result",
+        "source": "splunk:sid=scheduler__admin__search__RMD5f1a2b3c4d5e6f7a8_at_1795488000_4021",
+        "collected_at": "2026-11-18T02:40:13Z",
+        "added_by": {
+          "type": "triage_agent",
+          "id": "triage-agent/0.1.0"
+        },
+        "data": {
+          "failed_count": 57,
+          "success_count": 1
+        }
+      },
+      {
+        "evidence_id": "ev-rule-1",
+        "kind": "rule_match",
+        "title": "AUTH-003 fail-then-success from external IP",
+        "source": "rule-engine",
+        "collected_at": "2026-11-18T02:40:14Z",
+        "added_by": {
+          "type": "triage_agent",
+          "id": "triage-agent/0.1.0"
+        }
+      },
+      {
+        "evidence_id": "ev-sim-1",
+        "kind": "similar_incident",
+        "title": "INC-2041 (similarity 0.91)",
+        "source": "fuzzy-matcher",
+        "collected_at": "2026-11-18T02:40:15Z",
+        "added_by": {
+          "type": "triage_agent",
+          "id": "triage-agent/0.1.0"
+        }
+      },
+      {
+        "evidence_id": "ev-enr-1",
+        "kind": "identity_context",
+        "title": "jdoe: Finance, MFA enrolled, no travel on record",
+        "source": "idp-directory (mock)",
+        "collected_at": "2026-11-18T02:50:00Z",
+        "added_by": {
+          "type": "grok_bot",
+          "id": "grokbot-priya",
+          "on_behalf_of": "analyst-priya"
+        },
+        "data": {
+          "department": "Finance",
+          "mfa": true
+        }
+      }
+    ],
+    "timeline": [
+      {
+        "ts": "2026-11-18T02:31:00Z",
+        "description": "First failed login from 203.0.113.45",
+        "evidence_ref": "ev-raw-1"
+      },
+      {
+        "ts": "2026-11-18T02:40:11Z",
+        "description": "Successful login for jdoe",
+        "evidence_ref": "ev-raw-1"
+      }
+    ]
+  },
+  "next_steps_pack": {
+    "next_steps_pack_id": "55555555-5555-4555-8555-555555555555",
+    "case_id": "22222222-2222-4222-8222-222222222222",
+    "version": 1,
+    "generated_at": "2026-11-18T02:40:15Z",
+    "generated_by": {
+      "type": "triage_agent",
+      "id": "triage-agent/0.1.0"
+    },
+    "playbook_id": "pb-credential-stuffing-v1",
+    "steps": [
+      {
+        "step_id": "s1",
+        "order": 1,
+        "phase": "investigate",
+        "title": "Check post-login activity for jdoe",
+        "description": "Search VPN and O365 logs for the session started 02:40:11Z."
+      },
+      {
+        "step_id": "s2",
+        "order": 2,
+        "phase": "contain",
+        "title": "Disable jdoe and revoke sessions",
+        "description": "Prevent further use of the possibly compromised account.",
+        "proposed_action": {
+          "action_id": "66666666-6666-4666-8666-666666666666",
+          "case_id": "22222222-2222-4222-8222-222222222222",
+          "type": "disable_user",
+          "params": {
+            "user": "jdoe",
+            "revoke_sessions": true
+          },
+          "rationale": "Successful login after credential stuffing from a hosting-provider IP.",
+          "risk": "medium",
+          "status": "proposed",
+          "requires_approval": true,
+          "proposed_by": {
+            "type": "triage_agent",
+            "id": "triage-agent/0.1.0"
+          },
+          "proposed_at": "2026-11-18T02:40:15Z"
+        }
+      },
+      {
+        "step_id": "s3",
+        "order": 3,
+        "phase": "notify",
+        "title": "Notify jdoe's manager",
+        "description": "Use the draft below."
+      }
+    ],
+    "draft_responses": [
+      {
+        "channel": "email",
+        "audience": "jdoe's manager",
+        "subject": "Security action on jdoe's account",
+        "body": "We detected a suspicious login to jdoe's VPN account and have temporarily disabled it while we investigate."
+      }
+    ]
+  },
+  "proposed_actions": [
+    {
+      "action_id": "66666666-6666-4666-8666-666666666666",
+      "case_id": "22222222-2222-4222-8222-222222222222",
+      "type": "disable_user",
+      "params": {
+        "user": "jdoe",
+        "revoke_sessions": true
+      },
+      "rationale": "Successful login after credential stuffing from a hosting-provider IP.",
+      "risk": "medium",
+      "status": "approved",
+      "requires_approval": true,
+      "proposed_by": {
+        "type": "grok_bot",
+        "id": "grokbot-priya",
+        "on_behalf_of": "analyst-priya"
+      },
+      "proposed_at": "2026-11-18T02:50:00Z",
+      "decided_by": {
+        "type": "analyst",
+        "id": "analyst-priya",
+        "display_name": "Priya N."
+      },
+      "decided_at": "2026-11-18T02:52:30Z",
+      "decision_note": "Confirmed with user by phone; not them."
+    }
+  ],
+  "generated_at": "2026-11-18T02:49:45Z"
+}
