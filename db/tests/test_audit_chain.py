@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import uuid
+from pathlib import Path
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
 from tests.factory import seed_queued_case
-from triage_db.audit import AuditChainError, record_event, verify_chain
+from triage_db.audit import AuditChainError, action_event_type, record_event, verify_chain
 from triage_db.queue import claim_next, reap_expired_leases, release_case
 from triage_db.repositories import (
     save_action,
@@ -249,3 +251,72 @@ def test_auto_closed_insert_emits_case_auto_closed(conn: Connection) -> None:
     )
     assert _types(conn)[-1] == "case.auto_closed"
     verify_chain(conn)
+
+
+def _action(case_id: str, status: str) -> dict:
+    document = {
+        "action_id": str(uuid.uuid4()),
+        "case_id": case_id,
+        "type": "notify_owner",
+        "params": {},
+        "rationale": "status probe",
+        "risk": "low",
+        "status": status,
+        "requires_approval": True,
+        "proposed_by": {"type": "triage_agent", "id": "triage-agent/0.1.0"},
+        "proposed_at": WHEN,
+    }
+    # action.schema.json: decided statuses (approved through failed) need an analyst
+    # decider. An expired action was never decided.
+    if status in {"approved", "rejected", "executing", "executed", "failed"}:
+        document["decided_by"] = dict(ANALYST)
+        document["decided_at"] = WHEN
+    return document
+
+
+def _last_event(conn: Connection):  # type: ignore[no-untyped-def]
+    return conn.execute(
+        text("SELECT type, actor, data FROM audit_events ORDER BY seq DESC LIMIT 1")
+    ).one()
+
+
+def test_expired_action_emits_action_expired(conn: Connection) -> None:
+    seeded = seed_queued_case(conn, created_at=WHEN)
+    action = _action(seeded["case_id"], "expired")
+    save_action(conn, action)
+    event = _last_event(conn)
+    assert event.type == "action.expired"
+    assert event.actor["type"] == "system"
+    assert event.data["action_id"] == action["action_id"]
+    assert event.data["status"] == "expired"
+    rejected = conn.execute(
+        text("SELECT count(*) FROM audit_events WHERE type = 'action.rejected'")
+    ).scalar_one()
+    assert rejected == 0
+    verify_chain(conn)
+
+
+def test_executing_action_emits_action_executing(conn: Connection) -> None:
+    seeded = seed_queued_case(conn, created_at=WHEN)
+    action = _action(seeded["case_id"], "executing")
+    save_action(conn, action)
+    event = _last_event(conn)
+    assert event.type == "action.executing"
+    assert event.data["action_id"] == action["action_id"]
+    assert event.data["status"] == "executing"
+    executed = conn.execute(
+        text("SELECT count(*) FROM audit_events WHERE type = 'action.executed'")
+    ).scalar_one()
+    assert executed == 0
+    verify_chain(conn)
+
+
+def test_every_action_status_has_its_own_audit_event_type() -> None:
+    contracts = Path(__file__).resolve().parents[2] / "contracts" / "schemas"
+    statuses = json.loads((contracts / "action.schema.json").read_text())["properties"]["status"]["enum"]
+    audit_types = set(
+        json.loads((contracts / "audit-event.schema.json").read_text())["properties"]["type"]["enum"]
+    )
+    mapped = [action_event_type(status) for status in statuses]
+    assert mapped == [f"action.{status}" for status in statuses]
+    assert set(mapped) <= audit_types

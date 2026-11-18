@@ -35,16 +35,17 @@ _CASE_INSERT_EVENT = {
     "closed": "case.created",
 }
 
-# audit-event.schema.json has no action.executing or action.expired.
-# data.status keeps the real status; the type is the nearest enum value.
+# One audit event type per ProposedAction status (contract 0.2.1). A system
+# expiry is never recorded as a rejection, and executor pickup is never
+# recorded as execution.
 _ACTION_EVENT = {
     "proposed": "action.proposed",
     "approved": "action.approved",
     "rejected": "action.rejected",
-    "executing": "action.executed",
+    "executing": "action.executing",
     "executed": "action.executed",
     "failed": "action.failed",
-    "expired": "action.rejected",
+    "expired": "action.expired",
 }
 
 
