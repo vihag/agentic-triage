@@ -96,7 +96,7 @@ def _bot_keys_from_env() -> dict[str, tuple[str, str]]:
         return {
             _env("GROK_BOT_API_KEY", DEFAULT_BOT_KEY): (
                 _env("GROK_BOT_ID", DEFAULT_BOT_ID),
-                _env("GROK_BOT_ON_BEHALF_OF", DEFAULT_ON_BEHALF_OF),
+                _env("GROK_BOT_ANALYST", os.environ.get("GROK_BOT_ON_BEHALF_OF") or DEFAULT_ON_BEHALF_OF),
             )
         }
     parsed = json.loads(raw)

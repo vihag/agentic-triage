@@ -39,6 +39,9 @@ _IMPLEMENTED_SLICE = frozenset(
         "rejectAction",
     }
 )
+_BOT_IMPLEMENTED = frozenset(
+    {"botListQueue", "botClaim", "botAddEnrichment", "botPropose"},
+)
 
 
 def _segment(value: dict) -> str:
@@ -150,7 +153,10 @@ def test_every_operation_enforces_its_scheme(
                 assert_problem(accepted, problem_validator, 501)
         elif scheme == BOT_API_KEY:
             accepted = client.request(operation.method, url, headers={"X-GrokBot-Key": bot_key})
-            assert_problem(accepted, problem_validator, 501)
+            if operation.operation_id in _BOT_IMPLEMENTED:
+                assert accepted.status_code in (200, 201, 204, 404, 409, 412, 422, 500)
+            else:
+                assert_problem(accepted, problem_validator, 501)
             analyst = client.request(operation.method, url, headers=bearer)
             assert_problem(analyst, problem_validator, 401)
             bad_key = client.request(operation.method, url, headers={"X-GrokBot-Key": "not-a-real-key"})

@@ -100,6 +100,12 @@ open http://localhost:5173
 
 Use the demo analyst JWT from `.env.example` in the console dev setup. The API serves real Postgres data once ingest and the worker have run.
 
+Quick tunnel URL for a Grok Bot routine against local `api`:
+
+```bash
+docker compose --profile tunnel up -d tunnel && docker compose logs tunnel 2>&1 | grep -m1 -oE 'https://[a-z0-9-]+\.trycloudflare\.com'
+```
+
 ## Where to start reading
 
 1. [Architecture index](docs/architecture/README.md): context, containers, components, DFDs, [contract map](docs/architecture/contracts-map.md)
