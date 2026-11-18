@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BotRun",
+  "description": "One execution of an analyst's Grok Bot routine. Written via botStartRun/botFinishRun, read by the console via listBotRuns. Superset of the BotRun object previously inlined in openapi.yaml (same required fields; new fields are optional), so the change is backwards compatible. Owned by Backend engineer. Field constraints are deliberately no stricter than the old inline definition.",
+  "type": "object",
+  "required": [
+    "run_id",
+    "bot_id",
+    "on_behalf_of",
+    "status",
+    "started_at"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "bot_id": {
+      "type": "string"
+    },
+    "on_behalf_of": {
+      "type": "string",
+      "description": "Analyst id the bot key is bound to."
+    },
+    "routine_id": {
+      "type": "string"
+    },
+    "trigger": {
+      "type": "string",
+      "enum": [
+        "schedule",
+        "manual",
+        "webhook"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "running",
+        "succeeded",
+        "failed",
+        "partial"
+      ]
+    },
+    "started_at": {
+      "$ref": "common.schema.json#/$defs/Timestamp"
+    },
+    "finished_at": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cases_processed": {
+      "type": "integer"
+    },
+    "case_ids": {
+      "type": "array",
+      "description": "Cases this run claimed, enriched or proposed on (added for listBotRuns?case_id= filtering).",
+      "items": {
+        "$ref": "common.schema.json#/$defs/Uuid"
+      }
+    },
+    "proposals_made": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "enrichments_added": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "summary": {
+      "type": "string"
+    }
+  }
+}
