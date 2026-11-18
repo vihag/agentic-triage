@@ -13,6 +13,7 @@ from app.database import db_connection
 from app.problems import problem
 from app.splunk_normalize import normalize_splunk_webhook
 
+
 async def ingest_splunk_alert(
     request: Request,
     instance: str,
