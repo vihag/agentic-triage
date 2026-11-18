@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 PROBLEM_MEDIA_TYPE = "application/problem+json"
@@ -136,3 +136,7 @@ def install_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(OperationalError)
     async def handle_db_operational(request: Request, exc: OperationalError) -> JSONResponse:
         return problem(status=500, detail="Database unavailable.", instance=request.url.path)
+
+    @app.exception_handler(ProgrammingError)
+    async def handle_db_programming(request: Request, exc: ProgrammingError) -> JSONResponse:
+        return problem(status=500, detail="Database schema error.", instance=request.url.path)

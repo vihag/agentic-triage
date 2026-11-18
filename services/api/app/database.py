@@ -26,6 +26,14 @@ def get_engine() -> Engine:
     return _engine
 
 
+def reset_engine() -> None:
+    """Drop the pooled engine (tests re-point DATABASE_URL and migrate)."""
+    global _engine
+    if _engine is not None:
+        _engine.dispose()
+    _engine = None
+
+
 @contextmanager
 def db_connection() -> Generator[Connection, None, None]:
     with get_engine().begin() as conn:

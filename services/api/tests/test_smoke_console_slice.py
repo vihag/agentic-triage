@@ -8,48 +8,25 @@ import sys
 from pathlib import Path
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from app.main import create_app
 from app.settings import build_settings
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
 from triage_db.queue import claim_outbox
+
+from tests.db_setup import migrate_fresh, normalize_url
 
 REPO = Path(__file__).resolve().parents[3]
 EXAMPLES = REPO / "contracts" / "examples"
-DB_DIR = REPO / "db"
 WORKER_DIR = REPO / "services" / "worker"
 
 
-def _normalize_url(url: str) -> str:
-    if url.startswith("postgresql://"):
-        return "postgresql+psycopg://" + url[len("postgresql://") :]
-    if url.startswith("postgres://"):
-        return "postgresql+psycopg://" + url[len("postgres://") :]
-    return url
-
-
-def _migrate(url: str) -> None:
-    os.environ["DATABASE_URL"] = url
-    cfg = Config(str(DB_DIR / "alembic.ini"))
-    cfg.set_main_option("script_location", str(DB_DIR / "migrations"))
-    cfg.set_main_option("sqlalchemy.url", url)
-    command.upgrade(cfg, "head")
-
-
 @pytest.fixture(scope="module")
-def smoke_client():
-    raw = os.environ.get("TEST_DATABASE_URL")
-    if not raw:
+def smoke_client(migrated_test_db):
+    if migrated_test_db is None:
         pytest.skip("TEST_DATABASE_URL is not set")
-    url = _normalize_url(raw)
-    engine = create_engine(url)
-    with engine.begin() as conn:
-        conn.exec_driver_sql("DROP SCHEMA public CASCADE")
-        conn.exec_driver_sql("CREATE SCHEMA public")
-        conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
-    _migrate(url)
+    raw = os.environ["TEST_DATABASE_URL"]
+    url = normalize_url(raw)
+    engine = migrate_fresh(url)
     application = create_app(settings=build_settings())
     with TestClient(application) as client:
         yield client, engine

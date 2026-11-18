@@ -59,7 +59,7 @@ export async function fetchActions(client: ApiClient, caseId: string) {
 export async function approveAction(client: ApiClient, caseId: string, actionId: string) {
   const { data, error, response } = await client.POST(
     "/v1/cases/{case_id}/actions/{action_id}/approve",
-    { params: { path: { case_id: caseId, action_id: actionId } } },
+    { params: { path: { case_id: caseId, action_id: actionId } }, body: {} },
   );
   if (!response.ok || !data) {
     throw new Error(`approve failed (${response.status}): ${formatError(error)}`);
@@ -70,7 +70,7 @@ export async function approveAction(client: ApiClient, caseId: string, actionId:
 export async function rejectAction(client: ApiClient, caseId: string, actionId: string) {
   const { data, error, response } = await client.POST(
     "/v1/cases/{case_id}/actions/{action_id}/reject",
-    { params: { path: { case_id: caseId, action_id: actionId } } },
+    { params: { path: { case_id: caseId, action_id: actionId } }, body: {} },
   );
   if (!response.ok || !data) {
     throw new Error(`reject failed (${response.status}): ${formatError(error)}`);
