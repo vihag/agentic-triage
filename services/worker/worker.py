@@ -96,8 +96,6 @@ def process_claim(conn: Connection, claim_id: int, alert_id: str) -> None:
         case_id = str(uuid.uuid4())
         evidence = build_evidence_pack(case_id=case_id, alert=alert, decision=decision)
         steps_pack, proposed = build_next_steps_pack(case_id=case_id, alert=alert, decision=decision)
-        save_evidence_pack(conn, evidence)
-        save_next_steps_pack(conn, steps_pack)
         evidence_pack_id = evidence["evidence_pack_id"]
         next_steps_pack_id = steps_pack["next_steps_pack_id"]
         pending = len(proposed)
@@ -112,6 +110,8 @@ def process_claim(conn: Connection, claim_id: int, alert_id: str) -> None:
             case_id=case_id,
         )
         save_case(conn, case)
+        save_evidence_pack(conn, evidence)
+        save_next_steps_pack(conn, steps_pack)
         for action in proposed:
             save_action(conn, action)
     else:

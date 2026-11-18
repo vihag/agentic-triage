@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 
 import pytest
@@ -12,6 +13,7 @@ from app.spec import Operation, parse_operations
 from fastapi.testclient import TestClient
 from jsonschema import Draft202012Validator
 
+from tests.db_setup import migrate_fresh, normalize_url
 from tests.helpers import CONTRACT_PATH
 
 DEFAULT_BOT_KEY = "local-dev-grok-bot-key"
@@ -53,8 +55,26 @@ def settings() -> Settings:
     return build_settings()
 
 
+@pytest.fixture(scope="session")
+def migrated_test_db():
+    raw = os.environ.get("TEST_DATABASE_URL")
+    if not raw:
+        yield None
+        return
+    url = normalize_url(raw)
+    engine = migrate_fresh(url)
+    yield engine
+    engine.dispose()
+
+
 @pytest.fixture
-def client(settings: Settings, audit: RecordingAudit) -> Iterator[TestClient]:
+def client(
+    settings: Settings, audit: RecordingAudit, migrated_test_db
+) -> Iterator[TestClient]:
+    if migrated_test_db is not None:
+        os.environ["DATABASE_URL"] = normalize_url(os.environ["TEST_DATABASE_URL"])
+    elif not os.environ.get("DATABASE_URL"):
+        os.environ["DATABASE_URL"] = "postgresql+psycopg://127.0.0.1:9/triage_test"
     application = create_app(settings=settings, audit=audit)
     with TestClient(application) as test_client:
         yield test_client

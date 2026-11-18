@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import NoResultFound
 from triage_db.repositories.alerts import find_alert_by_sid, get_alert, save_alert
 from triage_db.repositories.decisions import get_decision_for_alert
 
@@ -58,7 +59,7 @@ async def get_alert_handler(request: Request, alert_id: str) -> JSONResponse | d
     try:
         with db_connection() as conn:
             document = get_alert(conn, alert_id)
-    except LookupError:
+    except (LookupError, NoResultFound):
         return problem(status=404, detail="Alert not found.", instance=str(request.url.path))
     except RuntimeError as exc:
         return problem(status=500, detail=str(exc), instance=str(request.url.path))

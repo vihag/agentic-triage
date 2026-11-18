@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 PROBLEM_MEDIA_TYPE = "application/problem+json"
@@ -77,6 +78,18 @@ def forbidden_bot(request: Request) -> JSONResponse:
     return problem(status=403, detail=FORBIDDEN_BOT_DETAIL, instance=request.url.path)
 
 
+def not_found(request: Request, detail: str) -> JSONResponse:
+    return problem(status=404, detail=detail, instance=request.url.path)
+
+
+def conflict(request: Request, detail: str) -> JSONResponse:
+    return problem(status=409, detail=detail, instance=request.url.path)
+
+
+def precondition_failed(request: Request, *, detail: str) -> JSONResponse:
+    return problem(status=412, detail=detail, instance=request.url.path)
+
+
 def not_implemented(request: Request, operation_id: str) -> JSONResponse:
     return problem(
         status=501,
@@ -112,3 +125,18 @@ def install_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(RequestValidationError)
     async def handle_validation(request: Request, exc: RequestValidationError) -> JSONResponse:
         return validation_problem(request, exc)
+
+    @app.exception_handler(RuntimeError)
+    async def handle_runtime(request: Request, exc: RuntimeError) -> JSONResponse:
+        message = str(exc)
+        if "DATABASE_URL" in message:
+            return problem(status=500, detail=message, instance=request.url.path)
+        raise exc
+
+    @app.exception_handler(OperationalError)
+    async def handle_db_operational(request: Request, exc: OperationalError) -> JSONResponse:
+        return problem(status=500, detail="Database unavailable.", instance=request.url.path)
+
+    @app.exception_handler(ProgrammingError)
+    async def handle_db_programming(request: Request, exc: ProgrammingError) -> JSONResponse:
+        return problem(status=500, detail="Database schema error.", instance=request.url.path)
