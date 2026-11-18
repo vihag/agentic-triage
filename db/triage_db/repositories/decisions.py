@@ -62,6 +62,21 @@ def save_decision(
     )
 
 
+def get_decision_for_alert(conn: Connection, alert_id: str) -> dict[str, Any] | None:
+    row = conn.execute(
+        text(
+            """
+            SELECT document FROM triage_decisions
+            WHERE alert_id = CAST(:alert_id AS uuid)
+            """
+        ),
+        {"alert_id": alert_id},
+    ).first()
+    if row is None:
+        return None
+    return load_json(row.document)
+
+
 def get_decision(conn: Connection, decision_id: str) -> dict[str, Any]:
     document = conn.execute(
         text("SELECT document FROM triage_decisions WHERE decision_id = CAST(:decision_id AS uuid)"),

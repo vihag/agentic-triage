@@ -74,6 +74,16 @@ def get_alert(conn: Connection, alert_id: str) -> dict[str, Any]:
     return load_json(document)
 
 
+def find_alert_by_sid(conn: Connection, sid: str) -> dict[str, Any] | None:
+    row = conn.execute(
+        text("SELECT document FROM alerts WHERE sid = :sid"),
+        {"sid": sid},
+    ).first()
+    if row is None:
+        return None
+    return load_json(row.document)
+
+
 def get_raw(conn: Connection, alert_id: str) -> dict[str, Any]:
     raw = conn.execute(
         text("SELECT raw FROM alerts WHERE alert_id = CAST(:alert_id AS uuid)"),
