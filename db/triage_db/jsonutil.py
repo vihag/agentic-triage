@@ -7,7 +7,7 @@ documents, which is the round-trip the JSON Schemas describe.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -29,6 +29,6 @@ def parse_ts(value: str | None) -> datetime | None:
 
 def format_ts(moment: datetime) -> str:
     """UTC timestamp with millisecond precision, matching the writer and verifier."""
-    utc = moment.astimezone(timezone.utc)
+    utc = moment.astimezone(UTC)
     millis = utc.microsecond // 1000
     return utc.strftime("%Y-%m-%dT%H:%M:%S.") + f"{millis:03d}Z"

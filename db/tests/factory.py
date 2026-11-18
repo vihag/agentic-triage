@@ -5,7 +5,6 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy.engine import Connection
-
 from triage_db.repositories import save_alert, save_case, save_decision
 
 

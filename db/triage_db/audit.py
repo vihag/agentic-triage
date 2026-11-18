@@ -10,7 +10,7 @@ import hashlib
 import json
 import uuid
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import text
@@ -30,7 +30,7 @@ def record_event(
     occurred_at: datetime | None = None,
 ) -> dict[str, Any]:
     seq = int(conn.execute(text("SELECT nextval('audit_events_seq')")).scalar_one())
-    moment = occurred_at or datetime.now(timezone.utc)
+    moment = occurred_at or datetime.now(UTC)
     event: dict[str, Any] = {
         "event_id": str(uuid.uuid4()),
         "seq": seq,

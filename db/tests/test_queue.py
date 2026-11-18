@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
-
 from tests.factory import seed_queued_case
 from tests.schema_check import _registry
 from triage_db.jsonutil import parse_ts
@@ -59,7 +58,7 @@ def test_claim_order_and_queue_filter(conn: Connection) -> None:
     assert claimed[0]["version"] == 2
     assert claimed[0]["claimed_by"] == ANALYST
     lease = parse_ts(claimed[0]["lease_expires_at"])
-    assert lease is not None and lease > datetime.now(timezone.utc)
+    assert lease is not None and lease > datetime.now(UTC)
 
     rest = claim_next(conn, queue="soc-high", claimed_by=ANALYST, max_items=5)
     assert [item["case_id"] for item in rest] == [third["case_id"], second_wait["case_id"]]
@@ -240,7 +239,7 @@ def test_outbox_claim_lease_and_concurrency(engine: Engine, conn: Connection) ->
     assert len(claimed) == 1
     assert claimed[0].status == "processing"
     assert claimed[0].attempts == 1
-    assert claimed[0].lease_expires_at > datetime.now(timezone.utc) - timedelta(seconds=1)
+    assert claimed[0].lease_expires_at > datetime.now(UTC) - timedelta(seconds=1)
     second = claim_outbox(conn, max_items=10)
     assert len(second) == 1
     assert second[0].alert_id != claimed[0].alert_id
