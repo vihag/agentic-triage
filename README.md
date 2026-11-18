@@ -18,6 +18,7 @@ it claims the newest cases assigned to them, enriches them, drafts comms and **p
 analyst can **approve**. That rule is enforced in the OpenAPI contract, the API and the JSON Schema.
 
 ```mermaid
+%% name: overview-flow
 flowchart LR
   S[Splunk alert] --> I[Ingest API] --> W[Triage Agent<br/>rules + fuzzy]
   W -->|down, confident| AC[Auto-close + audit]
@@ -27,6 +28,8 @@ flowchart LR
   H -->|yes| X[Execute action]
   H -->|no| R[Reject, note]
 ```
+
+**Caption.** The whole product on one line: journey J1 (Splunk → agent → auto-close or queue) feeds journey J2 (Grok Bot proposes, analyst decides). The detailed, single-purpose diagrams are indexed in [docs/architecture](docs/architecture/README.md) and [docs/uml](docs/uml/README.md); contracts per boundary are in [contracts-map.md](docs/architecture/contracts-map.md).
 
 ## How the team is organised
 
@@ -51,13 +54,16 @@ contracts/
   agent/interfaces.py        triage agent Protocols: RulePlugin, FuzzyMatcher, LLMClient, RoutingPolicy, mocks
   agent/README.md            agent I/O, pipeline, mocking, non-functional contract
 docs/
+  architecture/README.md     index of the 10 single-purpose architecture diagrams
+  uml/README.md              index of journeys J1/J2, sequences, state machines, ER
   team.md                    roles, ownership boundaries, contracts owned/consumed, DoD
   plan.md                    milestones, dependency graph, tickets (generated section)
   testing.md                 contract-first test strategy + CI outline
-  architecture/              C4 context + containers, components per service, deployment
+  architecture/              01 context, 02 containers/deployment, 03-07 components per container,
+                             08-09 DFD level 0/1 with trust boundaries, contracts-map.md (10)
   adr/                       0001-0008 architecture decision records
-  uml/                       user journeys, sequences, state machines, ER diagram
-  rendered/                  every mermaid block rendered to SVG
+  uml/                       J1 + J2 journeys and sequences, state machines, ER diagram
+  rendered/                  every mermaid block as <name>.svg and <name>.png (2x, slide-ready)
 plan/tickets.yaml            source of truth for tickets -> plan/issues.json
 scripts/validate_contracts.py  the contract gate (CI-blocking)
 scripts/gen_issues.py        regenerate issues.json + plan.md tickets
@@ -79,12 +85,12 @@ OpenAPI 3.1 is valid with external `$ref`s resolved plus house lint (approve/rej
 bot endpoints bot-key-only); the agent interface imports and its routing policy and `combine_severity`
 reproduce the example decisions; `plan/issues.json` is in sync.
 
-Render diagrams (needs `@mermaid-js/mermaid-cli`): `make diagrams` (set `MMDC=` and `CHROME_PATH=` if needed).
+Render diagrams (needs `@mermaid-js/mermaid-cli`): `make diagrams` writes `docs/rendered/<name>.svg` and `<name>.png` (2x). Names come from a `%% name:` comment on the first line of each mermaid block. Set `MMDC=` and `CHROME_PATH=` if needed.
 
 ## Where to start reading
 
-1. [System context and containers](docs/architecture/system-context.md)
-2. [Escalation sequence](docs/uml/seq-escalate.md) and [Grok Bot routine sequence](docs/uml/seq-grokbot-routine.md)
+1. [Architecture index](docs/architecture/README.md): context, containers, components, DFDs, [contract map](docs/architecture/contracts-map.md)
+2. The two user journeys: [J1 alert ingestion and agentic triage](docs/uml/journey-j1-alert-ingestion-triage.md) and [J2 analyst-assisted triage](docs/uml/journey-j2-analyst-assisted-triage.md), each with a sequence diagram ([J1](docs/uml/seq-j1-alert-ingestion-triage.md), [J2](docs/uml/seq-j2-analyst-assisted-triage.md))
 3. [ADR-0005 severity re-scoring and routing](docs/adr/0005-severity-rescoring-and-routing-policy.md)
 4. [ADR-0006 Grok Bot + human approval](docs/adr/0006-grok-bot-routines-and-human-approval.md)
 5. [contracts/openapi.yaml](contracts/openapi.yaml)

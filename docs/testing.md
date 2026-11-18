@@ -6,6 +6,7 @@ The contracts in `contracts/` are fixed first, so every component can be tested 
 the contract** and integration tests only have to prove wiring.
 
 ```mermaid
+%% name: testing-pyramid
 flowchart TB
   subgraph L0["L0 Contract gate (seconds, every commit)"]
     V1[JSON Schemas valid 2020-12]
@@ -33,6 +34,8 @@ flowchart TB
   end
   L0 --> L1 --> L2 --> L3
 ```
+
+**Caption.** The four test layers, cheapest first. L0 is the contract gate (schema validation, OpenAPI lint, Protocol checks); L2 holds the contract tests named in [contracts-map.md](architecture/contracts-map.md) (Schemathesis, Pact/Prism, golden alerts with Protocol mocks).
 
 ## L0: contract gate (`scripts/validate_contracts.py`)
 
@@ -91,6 +94,7 @@ case is resolved and the audit chain verifies.
 `.github/workflows/contracts.yml` (exists now) runs the L0 gate. The full pipeline once code lands:
 
 ```mermaid
+%% name: testing-ci-pipeline
 flowchart LR
   PR[push / PR] --> G[contracts gate<br/>validate_contracts.py]
   G --> PY[python: ruff, mypy, pytest unit<br/>+ golden alerts]
@@ -100,6 +104,8 @@ flowchart LR
   CT --> E2E[Playwright E2E<br/>main + nightly]
   E2E --> IMG[build + push images<br/>on main]
 ```
+
+**Caption.** GitHub Actions stages once code lands. The contract gate runs first and blocks everything; codegen drift checks make sure generated Pydantic and TypeScript types still match `contracts/`.
 
 ```yaml
 # sketch of the full workflow

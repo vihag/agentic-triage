@@ -1,6 +1,6 @@
 # ADR-0005: Severity re-scoring and routing policy
 
-* Status: Accepted · Date: 2026-11-18 · Owner: Architect, Triage-Agent/ML engineer
+* Status: Accepted, **confirmed by Vihag 2026-11-18** · Date: 2026-11-18 · Owner: Architect, Triage-Agent/ML engineer
 
 ## Context
 Splunk assigns a severity per saved search; it is static and noisy. We re-score each alert using deterministic rules and AI fuzzy matching, then route. AI must help but never be the only reason something dangerous is closed.
@@ -27,6 +27,15 @@ Decision confidence = weighted mix of rule certainty and fuzzy confidence (imple
 | unchanged | final < medium | `recorded_only` | `auto_closed` with resolution note "recorded" |
 
 **Guardrails:** `never_auto_close` rules (crown-jewel assets, privileged identities, active incident on the same entity); fuzzy timeout → rules-only + no auto-close; a 5 % random sample of auto-closed cases goes to the downgrade-review queue for drift monitoring; every auto-close is one click to re-open.
+
+## Confirmed decisions (no longer open)
+
+* **Unchanged-severity policy** (the two `unchanged` rows above): confirmed by Vihag, 2026-11-18.
+* **Severity input from Splunk:** Splunk's Webhook action doesn't send the alert severity, so it comes from
+  the webhook URL parameter `?severity=<1-6>` (e.g. `&severity=$alert.severity$`), or failing that a `severity`
+  field the saved search evals into the result row. The URL parameter wins if both are present. Confirmed by
+  Vihag, 2026-11-18. Contract: `ingestSplunkAlert` `severity` query parameter and
+  `SplunkWebhookPayload.result.severity`.
 
 ## Consequences
 Deterministic, testable core with AI as a bounded nudge; explanations are concrete (which rule, which similar incident). Thresholds live in config and are versioned in `policy.version`.
