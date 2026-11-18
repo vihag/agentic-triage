@@ -45,12 +45,29 @@ def save_action(
             "document": dump_json(document),
         },
     )
+    status = document["status"]
+    who = dict(actor) if actor is not None else dict(SYSTEM_ACTOR)
+    if status == "executing":
+        return
+    if status == "expired":
+        record_event(
+            conn,
+            event_type="case.status_changed",
+            actor=who,
+            case_id=document["case_id"],
+            data={
+                "action_id": document["action_id"],
+                "action_status": "expired",
+                "reason": "action_expired",
+            },
+        )
+        return
     record_event(
         conn,
-        event_type=action_event_type(document["status"]),
-        actor=dict(actor) if actor is not None else dict(SYSTEM_ACTOR),
+        event_type=action_event_type(status),
+        actor=who,
         case_id=document["case_id"],
-        data={"action_id": document["action_id"], "status": document["status"], "type": document["type"]},
+        data={"action_id": document["action_id"], "status": status, "type": document["type"]},
     )
 
 
