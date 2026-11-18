@@ -35,14 +35,16 @@ _CASE_INSERT_EVENT = {
     "closed": "case.created",
 }
 
-# executing and expired are not action.executed or action.rejected.
-# save_action emits nothing for executing, and case.status_changed for expiry.
+# audit-event.schema.json has no action.executing or action.expired.
+# data.status keeps the real status; the type is the nearest enum value.
 _ACTION_EVENT = {
     "proposed": "action.proposed",
     "approved": "action.approved",
     "rejected": "action.rejected",
+    "executing": "action.executed",
     "executed": "action.executed",
     "failed": "action.failed",
+    "expired": "action.rejected",
 }
 
 

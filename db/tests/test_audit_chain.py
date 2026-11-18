@@ -7,6 +7,7 @@ import uuid
 import pytest
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
+
 from tests.factory import seed_queued_case
 from triage_db.audit import AuditChainError, record_event, verify_chain
 from triage_db.queue import claim_next, reap_expired_leases, release_case
@@ -248,47 +249,4 @@ def test_auto_closed_insert_emits_case_auto_closed(conn: Connection) -> None:
         },
     )
     assert _types(conn)[-1] == "case.auto_closed"
-    verify_chain(conn)
-
-
-def _action(case_id: str, status: str) -> dict:
-    document = {
-        "action_id": str(uuid.uuid4()),
-        "case_id": case_id,
-        "type": "notify_owner",
-        "params": {},
-        "rationale": "status probe",
-        "risk": "low",
-        "status": status,
-        "requires_approval": True,
-        "proposed_by": {"type": "triage_agent", "id": "triage-agent/0.1.0"},
-        "proposed_at": WHEN,
-    }
-    if status == "expired":
-        document["decided_by"] = {"type": "analyst", "id": "analyst-priya"}
-        document["decided_at"] = WHEN
-    return document
-
-
-def test_executing_is_silent_and_expiry_is_a_case_status_change(conn: Connection) -> None:
-    seeded = seed_queued_case(conn, created_at=WHEN)
-    before = conn.execute(text("SELECT count(*) FROM audit_events")).scalar_one()
-    save_action(conn, _action(seeded["case_id"], "executing"))
-    assert conn.execute(text("SELECT count(*) FROM audit_events")).scalar_one() == before
-    save_action(conn, _action(seeded["case_id"], "expired"))
-    event = conn.execute(
-        text(
-            """
-            SELECT type, data FROM audit_events
-            ORDER BY seq DESC LIMIT 1
-            """
-        )
-    ).one()
-    assert event.type == "case.status_changed"
-    assert event.data["action_status"] == "expired"
-    assert event.data["reason"] == "action_expired"
-    rejected = conn.execute(
-        text("SELECT count(*) FROM audit_events WHERE type IN ('action.rejected', 'action.executed')")
-    ).scalar_one()
-    assert rejected == 0
     verify_chain(conn)
