@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from alembic import command
@@ -15,6 +16,7 @@ from sqlalchemy.pool import NullPool
 
 from triage_agent.fuzzy.corpus import CORPUS
 from triage_agent.fuzzy.embedder import HashingEmbedder
+from triage_agent.fuzzy.fallback import match_or_rules_only
 from triage_agent.fuzzy.index import PgvectorIndex
 from triage_agent.fuzzy.matcher import PgvectorFuzzyMatcher
 from triage_agent.fuzzy.seed import seed_corpus
@@ -61,7 +63,19 @@ def _admin_url() -> str:
     pytest.skip("Postgres is not reachable: " + "; ".join(errors))
 
 
-def test_seed_embeds_at_least_thirty_rows_and_knn_finds_inc_2041() -> None:
+class _SlowKnn:
+    """Drive ``PgvectorIndex.nearest`` with a 1 ms budget."""
+
+    def __init__(self, index: PgvectorIndex, vector: list[float]) -> None:
+        self.index = index
+        self.vector = vector
+
+    def match(self, alert: object, k: int = 5, timeout_s: float = 5.0) -> object:
+        return self.index.nearest(self.vector, k, timeout_s=0.001)
+
+
+@pytest.fixture(scope="module")
+def fuzzy_engine():  # type: ignore[no-untyped-def]
     admin_url = _admin_url()
     admin = create_engine(admin_url, isolation_level="AUTOCOMMIT", poolclass=NullPool)
     with admin.connect() as connection:
@@ -71,6 +85,12 @@ def test_seed_embeds_at_least_thirty_rows_and_knn_finds_inc_2041() -> None:
     url = make_url(admin_url).set(database=TEST_DB).render_as_string(hide_password=False)
     _upgrade(url)
     engine = create_engine(url, poolclass=NullPool)
+    yield engine
+    engine.dispose()
+
+
+def test_seed_embeds_at_least_thirty_rows_and_knn_finds_inc_2041(fuzzy_engine) -> None:  # type: ignore[no-untyped-def]
+    engine = fuzzy_engine
     embedder = HashingEmbedder()
     alert = {
         "title": "Excessive failed logins followed by success credential stuffing VPN",
@@ -90,8 +110,23 @@ def test_seed_embeds_at_least_thirty_rows_and_knn_finds_inc_2041() -> None:
         assert low == high == 1536
         matcher = PgvectorFuzzyMatcher(PgvectorIndex(conn), llm, embedder)
         result = matcher.match(alert, k=5, timeout_s=5)
-    engine.dispose()
     assert result.similar_items[0].ref_id == "INC-2041"
     assert result.suggested_severity == "high"
     assert result.model.startswith("embed:feature-hash-1536 / llm:")
     assert llm.model == "mock-llm"
+
+
+def test_statement_timeout_falls_back_and_leaves_the_connection_usable(fuzzy_engine) -> None:  # type: ignore[no-untyped-def]
+    embedder = HashingEmbedder()
+    slow = "SELECT pg_sleep(1) WHERE CAST(:embedding AS vector) IS NOT NULL AND :k >= 0"
+    with fuzzy_engine.begin() as conn:
+        seed_corpus(conn, embedder)
+        index = PgvectorIndex(conn)
+        vector = embedder.embed("statement timeout")
+        with patch("triage_agent.fuzzy.index._QUERY", slow):
+            outcome = match_or_rules_only(_SlowKnn(index, vector), {}, timeout_s=5)
+        assert outcome.result is None
+        assert outcome.guardrails == ("fuzzy_timeout_fallback",)
+        assert conn.execute(text("SELECT 1")).scalar_one() == 1
+        counted = conn.execute(text("SELECT count(*) FROM incident_corpus")).scalar_one()
+        assert counted == len(CORPUS)

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Protocol
+from collections.abc import Mapping, Sequence
+from typing import Any, Protocol
 
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
@@ -97,31 +97,44 @@ class PgvectorIndex:
         if timeout_s <= 0:
             raise FuzzyTimeout("neighbour search timed out")
         milliseconds = max(1, int(timeout_s * 1000))
-        execute = self.conn.execute  # type: ignore[attr-defined]
+        # The savepoint owns SET LOCAL. Rolling it back restores the caller's
+        # statement_timeout and clears a cancelled query, so the outer
+        # transaction stays usable. Do not SET statement_timeout back to 0.
+        savepoint = self.conn.begin_nested()  # type: ignore[attr-defined]
         try:
-            execute(text(f"SET LOCAL statement_timeout = {milliseconds}"))
-            rows = execute(
-                text(_QUERY),
+            rows = _timed_mappings(
+                self.conn,
+                milliseconds,
+                _QUERY,
                 {"embedding": vector_literal(vector), "k": k},
-            ).mappings()
-            found = [
-                to_similar(
-                    ref_id=row["ref_id"],
-                    ref_type=row["ref_type"],
-                    summary=row["summary"],
-                    similarity=1.0 - float(row["distance"]),
-                    verified_severity=row["verified_severity"],
-                    verdict=row["verdict"],
-                )
-                for row in rows
-            ]
-        except DBAPIError as exc:
-            if _cancelled(exc):
-                raise FuzzyTimeout("neighbour search timed out") from exc
-            raise
+            )
         finally:
-            execute(text("SET LOCAL statement_timeout = 0"))
-        return found
+            savepoint.rollback()
+        return [
+            to_similar(
+                ref_id=row["ref_id"],
+                ref_type=row["ref_type"],
+                summary=row["summary"],
+                similarity=1.0 - float(row["distance"]),
+                verified_severity=row["verified_severity"],
+                verdict=row["verdict"],
+            )
+            for row in rows
+        ]
+
+
+def _timed_mappings(
+    conn: object, milliseconds: int, statement: str, params: dict[str, object]
+) -> list[Mapping[str, Any]]:
+    execute = conn.execute  # type: ignore[attr-defined]
+    try:
+        execute(text(f"SET LOCAL statement_timeout = {milliseconds}"))
+        result = execute(text(statement), params)
+        return list(result.mappings())
+    except DBAPIError as exc:
+        if _cancelled(exc):
+            raise FuzzyTimeout("neighbour search timed out") from exc
+        raise
 
 
 def _cancelled(exc: BaseException) -> bool:
