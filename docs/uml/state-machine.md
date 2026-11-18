@@ -46,13 +46,13 @@ component and exercised through `claimNext`, `botClaim`, `releaseCase`, `transit
 %% name: uml-state-machine-action
 stateDiagram-v2
   direction LR
-  [*] --> proposed: agent, bot or analyst
-  proposed --> approved: analyst approves
-  proposed --> rejected: analyst rejects
-  proposed --> expired: case closed or TTL
-  approved --> executing: executor picks up
-  executing --> executed
-  executing --> failed
+  [*] --> proposed: agent, bot or analyst / action.proposed
+  proposed --> approved: analyst approves / action.approved
+  proposed --> rejected: analyst rejects / action.rejected
+  proposed --> expired: case closed or TTL / action.expired
+  approved --> executing: executor picks up / action.executing
+  executing --> executed: action.executed
+  executing --> failed: action.failed
   rejected --> [*]
   expired --> [*]
   executed --> [*]
@@ -64,3 +64,18 @@ move an action out of `proposed`. That rule is in the schema itself (decided sta
 `decided_by.type = analyst`), proven by `contracts/examples/invalid/action.bot-approved.json`, enforced by the
 API's approval guard (`approveAction`/`rejectAction` are `analystAuth`-only, linted by the contract gate), and
 the executor only reads `approved` rows.
+
+Each transition emits exactly one audit event of the matching type (`audit-event.schema.json#/properties/type`,
+contract 0.2.1). There is one event type per status, so the audit trail never relabels a system transition as a
+human one: a TTL or case-close expiry is `action.expired` (actor `system`), never `action.rejected`, and pickup by
+the executor is `action.executing`, never `action.executed`.
+
+| Action status | Audit event | Typical actor |
+|---|---|---|
+| `proposed` | `action.proposed` | triage_agent, grok_bot (on_behalf_of), analyst |
+| `approved` | `action.approved` | analyst only |
+| `rejected` | `action.rejected` | analyst only |
+| `expired` | `action.expired` | system (expiry reaper or case close) |
+| `executing` | `action.executing` | system (executor) |
+| `executed` | `action.executed` | system (executor) |
+| `failed` | `action.failed` | system (executor) |

@@ -25,10 +25,12 @@ if _ROOT not in sys.path:
 from contracts.agent.interfaces import (  # noqa: E402
     DefaultRoutingPolicy,
     FuzzyMatchResult,
+    LLMClient,
     RulePlugin,
     RuleResult,
     Severity,
     SeverityEffect,
+    SimilarItem,
     TriageContext,
     combine_severity,
 )
@@ -36,10 +38,12 @@ from contracts.agent.interfaces import (  # noqa: E402
 __all__ = [
     "DefaultRoutingPolicy",
     "FuzzyMatchResult",
+    "LLMClient",
     "RulePlugin",
     "RuleResult",
     "Severity",
     "SeverityEffect",
+    "SimilarItem",
     "TriageContext",
     "combine_severity",
     "repo_root",

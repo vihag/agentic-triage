@@ -1,7 +1,7 @@
 """In-process triage agent library.
 
-T09 owns rule discovery and the starter rules. Later tickets add the fuzzy
-matcher, severity routing, and pack builders behind the same contract.
+T09 owns rule discovery and the starter rules. T10 owns the fuzzy matcher.
+Severity routing and pack builders stay behind the same contract.
 """
 
 from triage_agent.contract import TriageContext

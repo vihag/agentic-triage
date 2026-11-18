@@ -104,7 +104,14 @@ test("typed client reads contract examples from the Prism mock", async () => {
     ),
   ).toEqual(nextStepsPacks.escalated);
 
-  const trail = [auditEvents.autoClosed, auditEvents.actionApproved].sort((a, b) => a.seq - b.seq);
+  const trail = [
+    auditEvents.autoClosed,
+    auditEvents.actionApproved,
+    auditEvents.actionExecuting,
+    auditEvents.actionExpired,
+  ].sort((a, b) => a.seq - b.seq);
+  expect(trail.map((event) => event.type)).toContain("action.executing");
+  expect(trail.map((event) => event.type)).toContain("action.expired");
   expect(
     dataOf(
       await client.GET("/v1/cases/{case_id}/audit", {
@@ -175,6 +182,8 @@ test("every positive example file is referenced by the typed fixtures", () => {
     "alert.downgrade.json",
     "alert.escalate.json",
     "audit-event.action-approved.json",
+    "audit-event.action-executing.json",
+    "audit-event.action-expired.json",
     "audit-event.auto-closed.json",
     "case.auto-closed.json",
     "case.escalated.json",

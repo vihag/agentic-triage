@@ -1,0 +1,12 @@
+{
+  "event_id": "aaaaaaaa-0004-4aaa-8aaa-aaaaaaaaaaaa",
+  "seq": 1096,
+  "occurred_at": "2026-11-18T03:10:00Z",
+  "type": "action.expired",
+  "actor": { "type": "system", "id": "action-expiry-reaper" },
+  "case_id": "88888888-8888-4888-8888-888888888888",
+  "alert_id": null,
+  "data": { "action_id": "6a6a6a6a-6a6a-4a6a-8a6a-6a6a6a6a6a6a", "from": "proposed", "to": "expired", "reason": "case_closed" },
+  "prev_hash": "9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d",
+  "hash": "b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2"
+}

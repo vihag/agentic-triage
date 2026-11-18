@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
@@ -115,3 +117,24 @@ def test_audit_privileges_revoked_from_app_role(conn: Connection) -> None:
     assert not conn.execute(text("SELECT has_table_privilege('triage_app', 'audit_events', 'DELETE')")).scalar_one()
     assert conn.execute(text("SELECT has_table_privilege('triage_app', 'cases', 'UPDATE')")).scalar_one()
     assert conn.execute(text("SELECT has_table_privilege('triage_app', 'cases', 'DELETE')")).scalar_one()
+
+
+def test_audit_type_check_matches_the_contract_enum(conn: Connection) -> None:
+    """audit_events.type accepts exactly the AuditEvent type enum (contract 0.2.1)."""
+    schema_path = (
+        Path(__file__).resolve().parents[2] / "contracts" / "schemas" / "audit-event.schema.json"
+    )
+    contract_types = set(json.loads(schema_path.read_text())["properties"]["type"]["enum"])
+    assert {"action.executing", "action.expired"} <= contract_types
+    definition = conn.execute(
+        text(
+            "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+            "WHERE conname = 'audit_events_type_ck'"
+        )
+    ).scalar_one()
+    accepted = {
+        value
+        for value in contract_types | {"action.not_a_type"}
+        if f"'{value}'::text" in definition
+    }
+    assert accepted == contract_types

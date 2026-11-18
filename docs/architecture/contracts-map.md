@@ -58,7 +58,7 @@ persistence boundaries with schema validation of what is written and read back.
 | C11 | Fuzzy matcher → LLM | `LLMClient.complete_json` (structured JSON) | PM (`MockLLMClient`); nightly real-model drift run | Triage-Agent/ML |
 | C12 | Agent → worker (decision) | `RoutingPolicy` / `DefaultRoutingPolicy`, `combine_severity` (ADR-0005) | PM + SV (contract gate replays the table and example decisions) | Triage-Agent/ML |
 | C13 | Worker → Postgres | `TriageDecision`, `Case`, `EvidencePack`, `NextStepsPack`, `ProposedAction` schemas. **This is the J1 → J2 hand-off.** | SV (producer-side validation + DB round-trip) | Backend / Data |
-| C14 | API, worker, executor → Postgres | `audit-event.schema.json` (AuditEvent), hash chain | SV, chain-verifier test | Data/DB |
+| C14 | API, worker, executor → Postgres | `audit-event.schema.json` (AuditEvent), hash chain. One event type per `ProposedAction` status, including `action.executing` and `action.expired` (contract 0.2.1); `audit_events.type` CHECK mirrors the enum (migration `0002`) | SV, chain-verifier test, DB CHECK-vs-enum test | Data/DB |
 | C15 | Postgres → executor | `ProposedAction` with `status = approved` only | SV, unit (executor ignores non-approved) | Backend |
 
 ## Contract gaps
@@ -68,6 +68,9 @@ persistence boundaries with schema validation of what is written and read back.
 | 1 | **Bot-readable case bundle.** The bot had no way to read `EvidencePack`/`NextStepsPack`. | **Closed** by PR #33: `botGetCaseBundle` (`GET /v1/bot/cases/{case_id}/bundle`, bot-key only, read-only, scoped to the bot's analyst) returns `CaseBundle` (`case-bundle.schema.json`). Backs the MCP `get_case_bundle` tool. |
 | 2 | **Bot activity for the console.** No analyst-facing list of `BotRun`s. | **Closed** by PR #33: `listBotRuns` (`GET /v1/bot-runs`, analyst-only, filters `on_behalf_of`/`bot_id`/`case_id`/`status`/time, paginated) returns `BotRunPage` of `BotRun` (`bot-run.schema.json`). |
 | 3 | **Executor → tooling connectors** have no contract. | Open, deliberately out of scope for the demo (connectors are mocked). Proposal: a `Connector` Protocol with mocks. |
+
+Contract 0.2.1 (2026-11-18) added the `action.executing` and `action.expired` audit event types, so every
+action status has its own event (see the action lifecycle in `docs/uml/state-machine.md`). This is an additive change.
 
 The contract gate (`scripts/validate_contracts.py`) now also enforces an explicit auth policy per operation:
 bot-only operations declare `botApiKey` and live under `/v1/bot/`, analyst-only operations (`approveAction`,

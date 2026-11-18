@@ -287,6 +287,7 @@ Critical path (red): T01 → T03 → T04 → T14 → T15 → T16 → T23 → T25
 | 2026-11-18 | Severity input via `?severity=` URL parameter or `result.severity` field (ADR-0005) | **Confirmed** by Vihag |
 | 2026-11-18 | Architect commits authored as `Sensei (Architect)` | **Confirmed** by Vihag |
 | 2026-11-18 | Split the architecture into 10 single-purpose diagrams; split journeys into J1 (machine) and J2 (analyst + bot) | Done in `docs/diagrams-v2` |
+| 2026-11-18 | Add `action.executing` and `action.expired` to the AuditEvent type enum (contract 0.2.1) so an expiry is never audited as a rejection and executor pickup never as execution; DB CHECK widened in migration `0002` | **Approved** by Vihag; contract PR |
 
 Still open: how Grok Bot reaches the API (tunnel vs hosted VM); the Splunk token sits in the URL (HMAC/mTLS
 would need a custom alert action); the executor connector Protocol (gap 3 in `docs/architecture/contracts-map.md`). Gaps 1-2 (bot case
