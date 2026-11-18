@@ -87,7 +87,7 @@ services:
     build:
       context: ./apps/console
       args:
-        VITE_API_BASE_URL: http://localhost:${API_PORT:-8080}
+        VITE_API_BASE_URL: ""  # same origin; nginx proxies /v1 to api
         VITE_API_TOKEN: ${VITE_API_TOKEN:-}
     ports:
       - "${CONSOLE_PORT:-5173}:80"

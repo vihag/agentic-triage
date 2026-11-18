@@ -10,7 +10,10 @@ if (!root) throw new Error("root element missing");
 
 const queryClient = new QueryClient();
 const client = createApiClient({
-  baseUrl: import.meta.env.VITE_API_BASE_URL ?? DEV_API_BASE_URL,
+  baseUrl:
+    import.meta.env.VITE_API_BASE_URL === ""
+      ? window.location.origin
+      : (import.meta.env.VITE_API_BASE_URL ?? DEV_API_BASE_URL),
   token: import.meta.env.VITE_API_TOKEN ?? DEV_API_TOKEN,
 });
 
