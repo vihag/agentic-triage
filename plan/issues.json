@@ -1,0 +1,271 @@
+[
+  {
+    "title": "[T01] Repo scaffolding and docker-compose stack",
+    "body": "**Ticket:** T01  \n**Owner role:** DevOps  \n**Milestone:** M1 Walking skeleton (due 2026-11-19)  \n**Depends on:** none  \n**Implements contract:** `docs/architecture/deployment.md`\n\n### Acceptance criteria\n- [ ] `make up` starts postgres(+pgvector), api, worker, console, simulator; `make down` cleans up\n- [ ] Health checks wired; `GET /v1/healthz` reachable on :8080\n- [ ] .env.example documents every secret; no secrets committed\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:devops",
+      "milestone:M1",
+      "type:feature"
+    ],
+    "milestone": "M1 Walking skeleton"
+  },
+  {
+    "title": "[T02] CI pipeline (contracts gate, lint, unit, contract tests)",
+    "body": "**Ticket:** T02  \n**Owner role:** DevOps  \n**Milestone:** M1 Walking skeleton (due 2026-11-19)  \n**Depends on:** T01  \n**Implements contract:** `docs/testing.md#ci`\n\n### Acceptance criteria\n- [ ] GitHub Actions runs `scripts/validate_contracts.py` on every PR and blocks merge on failure\n- [ ] Python (ruff, mypy, pytest) and TS (eslint, tsc, vitest) jobs run in parallel\n- [ ] Changes under contracts/ require Architect review (CODEOWNERS)\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:devops",
+      "milestone:M1",
+      "type:feature"
+    ],
+    "milestone": "M1 Walking skeleton"
+  },
+  {
+    "title": "[T03] Postgres schema and migrations per ER diagram",
+    "body": "**Ticket:** T03  \n**Owner role:** Data/DB engineer  \n**Milestone:** M1 Walking skeleton (due 2026-11-19)  \n**Depends on:** T01  \n**Implements contract:** `docs/uml/er-diagram.md`\n\n### Acceptance criteria\n- [ ] Alembic migrations create every table in the ER diagram, incl. pgvector extension\n- [ ] Round-trip test proves each JSON Schema example can be persisted and re-read identically\n- [ ] audit_events is append-only (UPDATE/DELETE revoked from the app role)\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:data",
+      "milestone:M1",
+      "type:feature"
+    ],
+    "milestone": "M1 Walking skeleton"
+  },
+  {
+    "title": "[T04] Queue repository with SKIP LOCKED claims and leases",
+    "body": "**Ticket:** T04  \n**Owner role:** Data/DB engineer  \n**Milestone:** M1 Walking skeleton (due 2026-11-19)  \n**Depends on:** T03  \n**Implements contract:** `contracts/openapi.yaml#claimNext, #botClaim`\n\n### Acceptance criteria\n- [ ] Claim uses `SELECT ... FOR UPDATE SKIP LOCKED` ordered by priority desc, created_at asc\n- [ ] 50 concurrent claimers never double-claim (property test)\n- [ ] Expired leases return cases to `queued` and emit `case.lease_expired`\n- [ ] Bot claims are filtered to cases assigned to the bot's analyst\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:data",
+      "milestone:M1",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M1 Walking skeleton"
+  },
+  {
+    "title": "[T05] Hash-chained audit log writer and verifier",
+    "body": "**Ticket:** T05  \n**Owner role:** Data/DB engineer  \n**Milestone:** M1 Walking skeleton (due 2026-11-19)  \n**Depends on:** T03  \n**Implements contract:** `contracts/schemas/audit-event.schema.json`\n\n### Acceptance criteria\n- [ ] Every write path emits an AuditEvent in the same transaction as the state change\n- [ ] `verify_chain()` detects a tampered row in a test\n- [ ] Emitted events validate against audit-event.schema.json\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:data",
+      "milestone:M1",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M1 Walking skeleton"
+  },
+  {
+    "title": "[T06] FastAPI skeleton from OpenAPI with three auth schemes",
+    "body": "**Ticket:** T06  \n**Owner role:** Backend engineer  \n**Milestone:** M1 Walking skeleton (due 2026-11-19)  \n**Depends on:** T01  \n**Implements contract:** `contracts/openapi.yaml#components/securitySchemes`\n\n### Acceptance criteria\n- [ ] All operations from openapi.yaml exist (501 stubs allowed) and FastAPI's generated spec diffs clean against the contract\n- [ ] analystAuth (JWT), botApiKey (X-GrokBot-Key -> bot_id + on_behalf_of), splunkToken (query) enforced\n- [ ] Errors are RFC 9457 problem+json\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:backend",
+      "milestone:M1",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M1 Walking skeleton"
+  },
+  {
+    "title": "[T07] Splunk webhook ingest, normalisation and dedup",
+    "body": "**Ticket:** T07  \n**Owner role:** Backend engineer  \n**Milestone:** M1 Walking skeleton (due 2026-11-19)  \n**Depends on:** T03, T06  \n**Implements contract:** `contracts/schemas/splunk-webhook.schema.json -> contracts/schemas/alert.schema.json`\n\n### Acceptance criteria\n- [ ] Both splunk-webhook examples ingest with 202 and produce Alerts equal to alert.*.json (ids/timestamps aside)\n- [ ] Severity mapping 1-6 -> 5 levels as documented in common.schema.json; ?severity overrides result.severity\n- [ ] Idempotent on sid (second POST returns 200 duplicate); alert + outbox row written in one transaction\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:backend",
+      "milestone:M1",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M1 Walking skeleton"
+  },
+  {
+    "title": "[T08] Splunk alert simulator and scenario library",
+    "body": "**Ticket:** T08  \n**Owner role:** QA/contract-test engineer  \n**Milestone:** M1 Walking skeleton (due 2026-11-19)  \n**Depends on:** none  \n**Implements contract:** `contracts/schemas/splunk-webhook.schema.json`\n\n### Acceptance criteria\n- [ ] `simulator send <scenario>` posts byte-for-byte Splunk-shaped webhooks to the ingest URL\n- [ ] Scenarios: credential stuffing (escalate), EICAR on CI (downgrade), TOR egress (unchanged-high), noisy port scan (unchanged-low), burst mode\n- [ ] Every generated payload validates against splunk-webhook.schema.json\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:qa",
+      "milestone:M1",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M1 Walking skeleton"
+  },
+  {
+    "title": "[T09] Rule engine, plugin loader and starter rules",
+    "body": "**Ticket:** T09  \n**Owner role:** Triage-Agent/ML engineer  \n**Milestone:** M2 Triage brain (due 2026-11-20)  \n**Depends on:** none  \n**Implements contract:** `contracts/agent/interfaces.py#RulePlugin`\n\n### Acceptance criteria\n- [ ] Rules discovered from a package, run by priority, every result recorded (matched or not)\n- [ ] Starter rules: AUTH-003, ALLOW-007, ALLOW-011, CROWN-001 (never_auto_close), PRIV-002 (privileged user +1), TOR-004\n- [ ] 100% branch coverage on rules; no I/O in rule code (enforced by test)\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:agent",
+      "milestone:M2",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M2 Triage brain"
+  },
+  {
+    "title": "[T10] Fuzzy matcher (pgvector kNN + LLM judge) with mock",
+    "body": "**Ticket:** T10  \n**Owner role:** Triage-Agent/ML engineer  \n**Milestone:** M2 Triage brain (due 2026-11-20)  \n**Depends on:** T03  \n**Implements contract:** `contracts/agent/interfaces.py#FuzzyMatcher, #LLMClient`\n\n### Acceptance criteria\n- [ ] Incident/pattern/baseline corpus seeded (>= 30 items) and embedded into pgvector\n- [ ] LLM judge returns structured JSON validated against FuzzyMatchResult $def\n- [ ] Timeout -> rules-only fallback with guardrail `fuzzy_timeout_fallback`\n- [ ] MockFuzzyMatcher used by all CI tests\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:agent",
+      "milestone:M2",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M2 Triage brain"
+  },
+  {
+    "title": "[T11] Severity combination, routing policy, TriageDecision",
+    "body": "**Ticket:** T11  \n**Owner role:** Triage-Agent/ML engineer  \n**Milestone:** M2 Triage brain (due 2026-11-20)  \n**Depends on:** T09, T10  \n**Implements contract:** `contracts/schemas/triage-decision.schema.json (ADR-0005)`\n\n### Acceptance criteria\n- [ ] Implements combine_severity order and DefaultRoutingPolicy table exactly\n- [ ] Decisions for golden alerts equal triage-decision.*.json (ids/timestamps aside)\n- [ ] Candidate labels created on escalation\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:agent",
+      "milestone:M2",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M2 Triage brain"
+  },
+  {
+    "title": "[T12] Evidence Pack and Next Steps Pack builders",
+    "body": "**Ticket:** T12  \n**Owner role:** Triage-Agent/ML engineer  \n**Milestone:** M2 Triage brain (due 2026-11-20)  \n**Depends on:** T11  \n**Implements contract:** `contracts/schemas/evidence-pack.schema.json, contracts/schemas/next-steps-pack.schema.json`\n\n### Acceptance criteria\n- [ ] Packs built for every enqueue_* disposition; every evidence item has provenance\n- [ ] Playbooks for 3 scenarios; proposed actions are status=proposed, requires_approval=true\n- [ ] Output validates against schemas\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:agent",
+      "milestone:M2",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M2 Triage brain"
+  },
+  {
+    "title": "[T13] Triage worker (outbox -> agent -> case + routing)",
+    "body": "**Ticket:** T13  \n**Owner role:** Backend engineer  \n**Milestone:** M3 Human triage loop (due 2026-11-20)  \n**Depends on:** T04, T05, T07, T11, T12  \n**Implements contract:** `contracts/schemas/case.schema.json`\n\n### Acceptance criteria\n- [ ] Every alert yields a case; escalations land in soc-high, low-confidence downgrades in soc-downgrade-review, auto-closes get status auto_closed + audit\n- [ ] Worker is idempotent and retry-safe (crash between steps never loses or duplicates a case)\n- [ ] Round-robin assignment to on-shift analysts\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:backend",
+      "milestone:M3",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M3 Human triage loop"
+  },
+  {
+    "title": "[T14] Case API with state-machine enforcement",
+    "body": "**Ticket:** T14  \n**Owner role:** Backend engineer  \n**Milestone:** M3 Human triage loop (due 2026-11-20)  \n**Depends on:** T04, T05, T06  \n**Implements contract:** `contracts/openapi.yaml#tag/cases, docs/uml/state-machine.md`\n\n### Acceptance criteria\n- [ ] list/get/assign/claim/release/transition implemented; illegal transitions 409; stale If-Match 412\n- [ ] Responses validate against case.schema.json (Schemathesis green)\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:backend",
+      "milestone:M3",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M3 Human triage loop"
+  },
+  {
+    "title": "[T15] Actions API (propose/approve/reject) and mock executor",
+    "body": "**Ticket:** T15  \n**Owner role:** Backend engineer  \n**Milestone:** M3 Human triage loop (due 2026-11-20)  \n**Depends on:** T14  \n**Implements contract:** `contracts/schemas/action.schema.json, contracts/openapi.yaml#tag/actions`\n\n### Acceptance criteria\n- [ ] Approve/reject reject bot credentials with 403 and an auth.denied audit event\n- [ ] Executor only picks actions with status approved; results recorded; connectors are mocks (EDR/IdP/firewall/ticketing)\n- [ ] Case moves to awaiting_approval while any action is proposed\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:backend",
+      "milestone:M3",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M3 Human triage loop"
+  },
+  {
+    "title": "[T16] Grok Bot API (keys, runs, queue, claim, enrichments, proposals)",
+    "body": "**Ticket:** T16  \n**Owner role:** Backend engineer  \n**Milestone:** M4 Grok Bot 10x (due 2026-11-21)  \n**Depends on:** T14, T15  \n**Implements contract:** `contracts/openapi.yaml#tag/bot`\n\n### Acceptance criteria\n- [ ] Bot key bound to one analyst; cannot read or claim other analysts' cases (403)\n- [ ] All bot writes audited with actor.type=grok_bot and on_behalf_of\n- [ ] Rate limit per key; keys revocable from the console\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:backend",
+      "milestone:M4",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M4 Grok Bot 10x"
+  },
+  {
+    "title": "[T17] Grok Bot routine and triage tool wrapper (MCP + REST)",
+    "body": "**Ticket:** T17  \n**Owner role:** Triage-Agent/ML engineer  \n**Milestone:** M4 Grok Bot 10x (due 2026-11-21)  \n**Depends on:** T16  \n**Implements contract:** `contracts/openapi.yaml#tag/bot, docs/uml/seq-grokbot-routine.md`\n\n### Acceptance criteria\n- [ ] Routine prompt + schedule (every 10 min on shift) documented; one routine per analyst\n- [ ] Thin MCP server exposing list_my_queue, claim, add_enrichment, propose; falls back to curl/REST\n- [ ] Demo shows a bot enriching and proposing on a fresh escalated case end-to-end\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:agent",
+      "milestone:M4",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M4 Grok Bot 10x"
+  },
+  {
+    "title": "[T18] Typed API client and mock server for frontend",
+    "body": "**Ticket:** T18  \n**Owner role:** Frontend engineer  \n**Milestone:** M1 Walking skeleton (due 2026-11-19)  \n**Depends on:** none  \n**Implements contract:** `contracts/openapi.yaml`\n\n### Acceptance criteria\n- [ ] TS types/client generated from openapi.yaml (openapi-typescript) in CI; drift fails the build\n- [ ] Prism mock server serves contracts/examples so the console can be built before the backend exists\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:frontend",
+      "milestone:M1",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M1 Walking skeleton"
+  },
+  {
+    "title": "[T19] Console: queue and case detail",
+    "body": "**Ticket:** T19  \n**Owner role:** Frontend engineer  \n**Milestone:** M3 Human triage loop (due 2026-11-20)  \n**Depends on:** T18  \n**Implements contract:** `contracts/openapi.yaml#tag/cases`\n\n### Acceptance criteria\n- [ ] Queue view filters by queue/severity/direction; shows Splunk vs final severity and candidate labels\n- [ ] Case detail shows decision explanation (rules + similar incidents), evidence timeline, next steps\n- [ ] Works against Prism mock and the real API with the same code\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:frontend",
+      "milestone:M3",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M3 Human triage loop"
+  },
+  {
+    "title": "[T20] Console: approvals inbox, audit timeline, bot activity",
+    "body": "**Ticket:** T20  \n**Owner role:** Frontend engineer  \n**Milestone:** M4 Grok Bot 10x (due 2026-11-21)  \n**Depends on:** T19  \n**Implements contract:** `contracts/openapi.yaml#tag/actions`\n\n### Acceptance criteria\n- [ ] Approve/reject with note; bot-proposed items visibly badged \"proposed by Grok Bot on your behalf\"\n- [ ] Audit timeline per case; downgrade-review queue with one-click re-open of auto-closed cases\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:frontend",
+      "milestone:M4",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M4 Grok Bot 10x"
+  },
+  {
+    "title": "[T21] Contract tests (Schemathesis + Pact consumer)",
+    "body": "**Ticket:** T21  \n**Owner role:** QA/contract-test engineer  \n**Milestone:** M3 Human triage loop (due 2026-11-20)  \n**Depends on:** T14, T18  \n**Implements contract:** `contracts/openapi.yaml`\n\n### Acceptance criteria\n- [ ] Schemathesis runs all operations against the live API in CI with zero schema violations\n- [ ] Pact consumer tests from the console verified against the provider\n- [ ] Negative tests for the human-approval invariant (bot -> approve = 403)\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:qa",
+      "milestone:M3",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M3 Human triage loop"
+  },
+  {
+    "title": "[T22] Golden-alert regression suite for the triage agent",
+    "body": "**Ticket:** T22  \n**Owner role:** QA/contract-test engineer  \n**Milestone:** M2 Triage brain (due 2026-11-20)  \n**Depends on:** T08, T11  \n**Implements contract:** `contracts/schemas/triage-decision.schema.json`\n\n### Acceptance criteria\n- [ ] >= 12 golden alerts with expected direction/disposition/final severity, run with mocks\n- [ ] Report shows escalate/downgrade/unchanged confusion matrix\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:qa",
+      "milestone:M2",
+      "type:feature",
+      "contract-impl"
+    ],
+    "milestone": "M2 Triage brain"
+  },
+  {
+    "title": "[T23] End-to-end demo test",
+    "body": "**Ticket:** T23  \n**Owner role:** QA/contract-test engineer  \n**Milestone:** M5 Demo hardening (due 2026-11-22)  \n**Depends on:** T13, T16, T20  \n**Implements contract:** `docs/uml/user-journeys.md`\n\n### Acceptance criteria\n- [ ] Playwright: simulator burst -> downgrades auto-close -> escalation queued -> bot enriches + proposes -> analyst approves -> executor runs -> case resolved\n- [ ] Runs green 5 times in a row in CI\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:qa",
+      "milestone:M5",
+      "type:feature"
+    ],
+    "milestone": "M5 Demo hardening"
+  },
+  {
+    "title": "[T24] Observability and demo metrics",
+    "body": "**Ticket:** T24  \n**Owner role:** DevOps  \n**Milestone:** M5 Demo hardening (due 2026-11-22)  \n**Depends on:** T13  \n**Implements contract:** `docs/architecture/deployment.md`\n\n### Acceptance criteria\n- [ ] Structured JSON logs with alert_id/case_id correlation; OpenTelemetry traces ingest -> decision\n- [ ] Console metrics strip: alerts in, % auto-closed, escalations, bot proposals, approval latency\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:devops",
+      "milestone:M5",
+      "type:feature"
+    ],
+    "milestone": "M5 Demo hardening"
+  },
+  {
+    "title": "[T25] Demo runbook, seed data and presentation diagrams",
+    "body": "**Ticket:** T25  \n**Owner role:** Architect/Tech Lead  \n**Milestone:** M5 Demo hardening (due 2026-11-22)  \n**Depends on:** T23  \n**Implements contract:** `docs/`\n\n### Acceptance criteria\n- [ ] One-command demo reset + seed; 7-minute script with fallback recording\n- [ ] Rendered diagrams embedded in the slide deck; ADRs up to date\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "labels": [
+      "role:architect",
+      "milestone:M5",
+      "type:feature"
+    ],
+    "milestone": "M5 Demo hardening"
+  }
+]

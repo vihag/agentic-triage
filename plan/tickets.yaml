@@ -1,0 +1,263 @@
+# Source of truth for the work breakdown. Edit here, then run: python scripts/gen_issues.py
+# (regenerates plan/issues.json and the ticket section of docs/plan.md; CI fails if stale).
+milestones:
+  M0: { title: "M0 Contracts & design", due: "2026-11-18" }
+  M1: { title: "M1 Walking skeleton", due: "2026-11-19" }
+  M2: { title: "M2 Triage brain", due: "2026-11-20" }
+  M3: { title: "M3 Human triage loop", due: "2026-11-20" }
+  M4: { title: "M4 Grok Bot 10x", due: "2026-11-21" }
+  M5: { title: "M5 Demo hardening", due: "2026-11-22" }
+tickets:
+  - id: T01
+    title: Repo scaffolding and docker-compose stack
+    milestone: M1
+    owner: devops
+    depends_on: []
+    contract: docs/architecture/deployment.md
+    acceptance:
+      - "`make up` starts postgres(+pgvector), api, worker, console, simulator; `make down` cleans up"
+      - Health checks wired; `GET /v1/healthz` reachable on :8080
+      - .env.example documents every secret; no secrets committed
+  - id: T02
+    title: CI pipeline (contracts gate, lint, unit, contract tests)
+    milestone: M1
+    owner: devops
+    depends_on: [T01]
+    contract: docs/testing.md#ci
+    acceptance:
+      - "GitHub Actions runs `scripts/validate_contracts.py` on every PR and blocks merge on failure"
+      - Python (ruff, mypy, pytest) and TS (eslint, tsc, vitest) jobs run in parallel
+      - "Changes under contracts/ require Architect review (CODEOWNERS)"
+  - id: T03
+    title: Postgres schema and migrations per ER diagram
+    milestone: M1
+    owner: data
+    depends_on: [T01]
+    contract: docs/uml/er-diagram.md
+    acceptance:
+      - Alembic migrations create every table in the ER diagram, incl. pgvector extension
+      - Round-trip test proves each JSON Schema example can be persisted and re-read identically
+      - audit_events is append-only (UPDATE/DELETE revoked from the app role)
+  - id: T04
+    title: Queue repository with SKIP LOCKED claims and leases
+    milestone: M1
+    owner: data
+    depends_on: [T03]
+    contract: "contracts/openapi.yaml#claimNext, #botClaim"
+    acceptance:
+      - "Claim uses `SELECT ... FOR UPDATE SKIP LOCKED` ordered by priority desc, created_at asc"
+      - 50 concurrent claimers never double-claim (property test)
+      - Expired leases return cases to `queued` and emit `case.lease_expired`
+      - Bot claims are filtered to cases assigned to the bot's analyst
+  - id: T05
+    title: Hash-chained audit log writer and verifier
+    milestone: M1
+    owner: data
+    depends_on: [T03]
+    contract: contracts/schemas/audit-event.schema.json
+    acceptance:
+      - Every write path emits an AuditEvent in the same transaction as the state change
+      - "`verify_chain()` detects a tampered row in a test"
+      - Emitted events validate against audit-event.schema.json
+  - id: T06
+    title: FastAPI skeleton from OpenAPI with three auth schemes
+    milestone: M1
+    owner: backend
+    depends_on: [T01]
+    contract: "contracts/openapi.yaml#components/securitySchemes"
+    acceptance:
+      - All operations from openapi.yaml exist (501 stubs allowed) and FastAPI's generated spec diffs clean against the contract
+      - analystAuth (JWT), botApiKey (X-GrokBot-Key -> bot_id + on_behalf_of), splunkToken (query) enforced
+      - Errors are RFC 9457 problem+json
+  - id: T07
+    title: Splunk webhook ingest, normalisation and dedup
+    milestone: M1
+    owner: backend
+    depends_on: [T03, T06]
+    contract: "contracts/schemas/splunk-webhook.schema.json -> contracts/schemas/alert.schema.json"
+    acceptance:
+      - Both splunk-webhook examples ingest with 202 and produce Alerts equal to alert.*.json (ids/timestamps aside)
+      - Severity mapping 1-6 -> 5 levels as documented in common.schema.json; ?severity overrides result.severity
+      - Idempotent on sid (second POST returns 200 duplicate); alert + outbox row written in one transaction
+  - id: T08
+    title: Splunk alert simulator and scenario library
+    milestone: M1
+    owner: qa
+    depends_on: []
+    contract: contracts/schemas/splunk-webhook.schema.json
+    acceptance:
+      - "`simulator send <scenario>` posts byte-for-byte Splunk-shaped webhooks to the ingest URL"
+      - "Scenarios: credential stuffing (escalate), EICAR on CI (downgrade), TOR egress (unchanged-high), noisy port scan (unchanged-low), burst mode"
+      - Every generated payload validates against splunk-webhook.schema.json
+  - id: T09
+    title: Rule engine, plugin loader and starter rules
+    milestone: M2
+    owner: agent
+    depends_on: []
+    contract: "contracts/agent/interfaces.py#RulePlugin"
+    acceptance:
+      - Rules discovered from a package, run by priority, every result recorded (matched or not)
+      - "Starter rules: AUTH-003, ALLOW-007, ALLOW-011, CROWN-001 (never_auto_close), PRIV-002 (privileged user +1), TOR-004"
+      - 100% branch coverage on rules; no I/O in rule code (enforced by test)
+  - id: T10
+    title: Fuzzy matcher (pgvector kNN + LLM judge) with mock
+    milestone: M2
+    owner: agent
+    depends_on: [T03]
+    contract: "contracts/agent/interfaces.py#FuzzyMatcher, #LLMClient"
+    acceptance:
+      - Incident/pattern/baseline corpus seeded (>= 30 items) and embedded into pgvector
+      - LLM judge returns structured JSON validated against FuzzyMatchResult $def
+      - Timeout -> rules-only fallback with guardrail `fuzzy_timeout_fallback`
+      - MockFuzzyMatcher used by all CI tests
+  - id: T11
+    title: Severity combination, routing policy, TriageDecision
+    milestone: M2
+    owner: agent
+    depends_on: [T09, T10]
+    contract: contracts/schemas/triage-decision.schema.json (ADR-0005)
+    acceptance:
+      - Implements combine_severity order and DefaultRoutingPolicy table exactly
+      - Decisions for golden alerts equal triage-decision.*.json (ids/timestamps aside)
+      - Candidate labels created on escalation
+  - id: T12
+    title: Evidence Pack and Next Steps Pack builders
+    milestone: M2
+    owner: agent
+    depends_on: [T11]
+    contract: contracts/schemas/evidence-pack.schema.json, contracts/schemas/next-steps-pack.schema.json
+    acceptance:
+      - Packs built for every enqueue_* disposition; every evidence item has provenance
+      - Playbooks for 3 scenarios; proposed actions are status=proposed, requires_approval=true
+      - Output validates against schemas
+  - id: T13
+    title: Triage worker (outbox -> agent -> case + routing)
+    milestone: M3
+    owner: backend
+    depends_on: [T04, T05, T07, T11, T12]
+    contract: contracts/schemas/case.schema.json
+    acceptance:
+      - Every alert yields a case; escalations land in soc-high, low-confidence downgrades in soc-downgrade-review, auto-closes get status auto_closed + audit
+      - Worker is idempotent and retry-safe (crash between steps never loses or duplicates a case)
+      - Round-robin assignment to on-shift analysts
+  - id: T14
+    title: Case API with state-machine enforcement
+    milestone: M3
+    owner: backend
+    depends_on: [T04, T05, T06]
+    contract: "contracts/openapi.yaml#tag/cases, docs/uml/state-machine.md"
+    acceptance:
+      - list/get/assign/claim/release/transition implemented; illegal transitions 409; stale If-Match 412
+      - Responses validate against case.schema.json (Schemathesis green)
+  - id: T15
+    title: Actions API (propose/approve/reject) and mock executor
+    milestone: M3
+    owner: backend
+    depends_on: [T14]
+    contract: "contracts/schemas/action.schema.json, contracts/openapi.yaml#tag/actions"
+    acceptance:
+      - Approve/reject reject bot credentials with 403 and an auth.denied audit event
+      - Executor only picks actions with status approved; results recorded; connectors are mocks (EDR/IdP/firewall/ticketing)
+      - Case moves to awaiting_approval while any action is proposed
+  - id: T16
+    title: Grok Bot API (keys, runs, queue, claim, enrichments, proposals)
+    milestone: M4
+    owner: backend
+    depends_on: [T14, T15]
+    contract: "contracts/openapi.yaml#tag/bot"
+    acceptance:
+      - Bot key bound to one analyst; cannot read or claim other analysts' cases (403)
+      - All bot writes audited with actor.type=grok_bot and on_behalf_of
+      - Rate limit per key; keys revocable from the console
+  - id: T17
+    title: Grok Bot routine and triage tool wrapper (MCP + REST)
+    milestone: M4
+    owner: agent
+    depends_on: [T16]
+    contract: "contracts/openapi.yaml#tag/bot, docs/uml/seq-grokbot-routine.md"
+    acceptance:
+      - "Routine prompt + schedule (every 10 min on shift) documented; one routine per analyst"
+      - Thin MCP server exposing list_my_queue, claim, add_enrichment, propose; falls back to curl/REST
+      - Demo shows a bot enriching and proposing on a fresh escalated case end-to-end
+  - id: T18
+    title: Typed API client and mock server for frontend
+    milestone: M1
+    owner: frontend
+    depends_on: []
+    contract: contracts/openapi.yaml
+    acceptance:
+      - TS types/client generated from openapi.yaml (openapi-typescript) in CI; drift fails the build
+      - Prism mock server serves contracts/examples so the console can be built before the backend exists
+  - id: T19
+    title: "Console: queue and case detail"
+    milestone: M3
+    owner: frontend
+    depends_on: [T18]
+    contract: "contracts/openapi.yaml#tag/cases"
+    acceptance:
+      - Queue view filters by queue/severity/direction; shows Splunk vs final severity and candidate labels
+      - Case detail shows decision explanation (rules + similar incidents), evidence timeline, next steps
+      - Works against Prism mock and the real API with the same code
+  - id: T20
+    title: "Console: approvals inbox, audit timeline, bot activity"
+    milestone: M4
+    owner: frontend
+    depends_on: [T19]
+    contract: "contracts/openapi.yaml#tag/actions"
+    acceptance:
+      - Approve/reject with note; bot-proposed items visibly badged "proposed by Grok Bot on your behalf"
+      - Audit timeline per case; downgrade-review queue with one-click re-open of auto-closed cases
+  - id: T21
+    title: Contract tests (Schemathesis + Pact consumer)
+    milestone: M3
+    owner: qa
+    depends_on: [T14, T18]
+    contract: contracts/openapi.yaml
+    acceptance:
+      - Schemathesis runs all operations against the live API in CI with zero schema violations
+      - Pact consumer tests from the console verified against the provider
+      - Negative tests for the human-approval invariant (bot -> approve = 403)
+  - id: T22
+    title: Golden-alert regression suite for the triage agent
+    milestone: M2
+    owner: qa
+    depends_on: [T08, T11]
+    contract: contracts/schemas/triage-decision.schema.json
+    acceptance:
+      - ">= 12 golden alerts with expected direction/disposition/final severity, run with mocks"
+      - Report shows escalate/downgrade/unchanged confusion matrix
+  - id: T23
+    title: End-to-end demo test
+    milestone: M5
+    owner: qa
+    depends_on: [T13, T16, T20]
+    contract: docs/uml/user-journeys.md
+    acceptance:
+      - "Playwright: simulator burst -> downgrades auto-close -> escalation queued -> bot enriches + proposes -> analyst approves -> executor runs -> case resolved"
+      - Runs green 5 times in a row in CI
+  - id: T24
+    title: Observability and demo metrics
+    milestone: M5
+    owner: devops
+    depends_on: [T13]
+    contract: docs/architecture/deployment.md
+    acceptance:
+      - Structured JSON logs with alert_id/case_id correlation; OpenTelemetry traces ingest -> decision
+      - "Console metrics strip: alerts in, % auto-closed, escalations, bot proposals, approval latency"
+  - id: T25
+    title: Demo runbook, seed data and presentation diagrams
+    milestone: M5
+    owner: architect
+    depends_on: [T23]
+    contract: docs/
+    acceptance:
+      - One-command demo reset + seed; 7-minute script with fallback recording
+      - Rendered diagrams embedded in the slide deck; ADRs up to date
+roles:
+  architect: Architect/Tech Lead
+  backend: Backend engineer
+  agent: Triage-Agent/ML engineer
+  frontend: Frontend engineer
+  data: Data/DB engineer
+  qa: QA/contract-test engineer
+  devops: DevOps
