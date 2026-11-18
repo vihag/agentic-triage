@@ -30,7 +30,7 @@ def build_evidence_pack(
     summary = decision.get("policy", {}).get("rationale") or alert.get("title", "Triage evidence")
     items: list[dict[str, Any]] = [
         {
-            "evidence_id": f"ev-raw-{alert_id[:8]}",
+            "evidence_id": f"ev-raw-{case_id}",
             "kind": "raw_event",
             "title": "Triggering Splunk result",
             "source": f"splunk:sid={sid}",
@@ -48,7 +48,7 @@ def build_evidence_pack(
             continue
         items.append(
             {
-                "evidence_id": f"ev-rule-{row['rule_id']}",
+                "evidence_id": f"ev-rule-{row['rule_id']}-{case_id}",
                 "kind": "rule_match",
                 "title": row["rule_id"],
                 "source": "rule-engine",
@@ -61,7 +61,7 @@ def build_evidence_pack(
         top = fuzzy["similar_items"][0]
         items.append(
             {
-                "evidence_id": f"ev-sim-{top.get('ref_id', 'match')}",
+                "evidence_id": f"ev-sim-{top.get('ref_id', 'match')}-{case_id}",
                 "kind": "similar_incident",
                 "title": f"{top.get('ref_id')} (similarity {top.get('similarity')})",
                 "source": "fuzzy-matcher",
