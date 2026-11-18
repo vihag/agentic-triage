@@ -115,6 +115,25 @@ def test_release_returns_the_case_to_the_queue(conn: Connection) -> None:
     assert again[0]["case_id"] == seeded["case_id"]
 
 
+def test_another_principal_cannot_release_the_claim(conn: Connection) -> None:
+    seeded = seed_queued_case(conn, priority=40)
+    claim_next(conn, queue="soc-high", claimed_by=ANALYST)
+    other = {"type": "analyst", "id": "analyst-omar"}
+    with pytest.raises(LookupError):
+        release_case(conn, case_id=seeded["case_id"], released_by=other)
+    held = conn.execute(
+        text(
+            """
+            SELECT status, claimed_by->>'id' AS holder
+            FROM cases WHERE case_id = CAST(:case_id AS uuid)
+            """
+        ),
+        {"case_id": seeded["case_id"]},
+    ).one()
+    assert held.status == "claimed"
+    assert held.holder == "analyst-priya"
+
+
 def test_expired_lease_returns_to_queued_and_emits_event(conn: Connection) -> None:
     seeded = seed_queued_case(conn)
     claim_next(conn, queue="soc-high", claimed_by=ANALYST)

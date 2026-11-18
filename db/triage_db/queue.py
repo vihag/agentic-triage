@@ -70,6 +70,7 @@ SET status = 'queued',
     )
 WHERE case_id = CAST(:case_id AS uuid)
   AND status = 'claimed'
+  AND claimed_by->>'id' = :releaser_id
 RETURNING document
 """
 
@@ -173,9 +174,14 @@ def bot_claim(
 
 
 def release_case(conn: Connection, *, case_id: str, released_by: dict[str, Any]) -> dict[str, Any]:
-    row = conn.execute(text(RELEASE_SQL), {"case_id": case_id}).one_or_none()
+    releaser_id = released_by.get("id")
+    if not isinstance(releaser_id, str) or not releaser_id:
+        raise ValueError("release requires a principal id")
+    row = conn.execute(
+        text(RELEASE_SQL), {"case_id": case_id, "releaser_id": releaser_id}
+    ).one_or_none()
     if row is None:
-        raise LookupError(f"case {case_id} is not claimed")
+        raise LookupError(f"case {case_id} is not claimed by {releaser_id}")
     document = load_json(row[0])
     record_event(
         conn,
