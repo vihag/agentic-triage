@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
+from triage_db.audit import SYSTEM_ACTOR, action_event_type, record_event
 from triage_db.jsonutil import dump_json, load_json, parse_ts
 
 
-def save_action(conn: Connection, document: dict[str, Any]) -> None:
+def save_action(
+    conn: Connection, document: dict[str, Any], *, actor: Mapping[str, Any] | None = None
+) -> None:
     decided_by = document.get("decided_by")
     execution_result = document.get("execution_result")
     conn.execute(
@@ -40,6 +44,13 @@ def save_action(conn: Connection, document: dict[str, Any]) -> None:
             "execution_result": None if execution_result is None else dump_json(execution_result),
             "document": dump_json(document),
         },
+    )
+    record_event(
+        conn,
+        event_type=action_event_type(document["status"]),
+        actor=dict(actor) if actor is not None else dict(SYSTEM_ACTOR),
+        case_id=document["case_id"],
+        data={"action_id": document["action_id"], "status": document["status"], "type": document["type"]},
     )
 
 
