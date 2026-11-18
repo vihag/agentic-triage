@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Splunk alert simulator. Usage: simulator send <scenario>
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd "${HERE}/../.." && pwd)"
+if [[ -n "${SIMULATOR_PYTHON:-}" ]]; then
+  PY="${SIMULATOR_PYTHON}"
+elif [[ -x "${REPO}/.venv/bin/python" ]]; then
+  PY="${REPO}/.venv/bin/python"
+else
+  PY="$(command -v python3)"
+fi
+export PYTHONPATH="${HERE}/src${PYTHONPATH:+:${PYTHONPATH}}"
+exec "${PY}" -m simulator "$@"
