@@ -3,7 +3,7 @@
 ```mermaid
 %% name: arch-05-components-console
 flowchart LR
-  P1(("UI routes<br/>/queue /cases/:id /approvals"))
+  P1(("UI routes<br/>/queue /cases/:id /approvals /bot-activity"))
   subgraph C["Analyst console container (React + Vite + TS)"]
     direction TB
     AUTH["OIDC session"]
@@ -14,6 +14,7 @@ flowchart LR
     NS["NextStepsPanel + drafts"]
     AI["ApprovalsInbox"]
     AT["AuditTimeline"]
+    BA["BotActivity<br/>runs on my behalf"]
     Q["TanStack Query cache"]
     CL["Generated API client<br/>openapi-typescript"]
   end
@@ -22,7 +23,8 @@ flowchart LR
   P1 --- QV & CD & AI
   CD --> DX & EV & NS & AT
   NS --> AI
-  QV & CD & AI & AT --> Q --> CL
+  P1 --- BA
+  QV & CD & AI & AT & BA --> Q --> CL
   CL --- R1
   AUTH --- R2
   AUTH --> CL
@@ -34,6 +36,6 @@ flowchart LR
 `contracts/openapi.yaml`, so any contract drift becomes a TypeScript compile error. Required operations:
 `listCases`, `getCase`, `getTriageDecision`, `getEvidencePack`, `getNextStepsPack`, `getCaseAudit`,
 `claimNext`, `releaseCase`, `assignCase`, `transitionCase`, `listActions`, `proposeAction`,
-`approveAction`, `rejectAction`. Verified consumer-side with Pact (consumer-driven contract) and developed
+`approveAction`, `rejectAction`, `listBotRuns` (bot activity view, closed gap 2). Verified consumer-side with Pact (consumer-driven contract) and developed
 against a Prism mock server that serves `contracts/examples`. Approve/reject are only sent with the analyst's
 OIDC token (`analystAuth`).

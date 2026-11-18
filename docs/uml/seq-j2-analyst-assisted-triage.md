@@ -15,6 +15,9 @@ sequenceDiagram
   M->>API: botStartRun, botClaim (X-GrokBot-Key)
   API-->>M: Case[] claimed by grok_bot on behalf of P
   loop each claimed case
+    B->>M: get_case_bundle
+    M->>API: botGetCaseBundle (read-only, scoped to P)
+    API-->>M: CaseBundle (Case, decision, EvidencePack, NextStepsPack, proposed actions)
     B->>M: add_enrichment
     M->>API: botAddEnrichment
     API-->>M: EvidencePack (version + 1)
@@ -24,7 +27,9 @@ sequenceDiagram
   end
   B->>M: finish_run
   M->>API: botFinishRun
-  P->>UI: open My queue
+  P->>UI: open My queue and Bot activity
+  UI->>API: listBotRuns(on_behalf_of=P)
+  API-->>UI: BotRunPage
   UI->>API: listCases(assignee=P), getCase, getTriageDecision, getEvidencePack, getNextStepsPack
   API-->>UI: Case, TriageDecision, EvidencePack, NextStepsPack
   P->>UI: approve one action, reject another with a note
@@ -40,10 +45,9 @@ sequenceDiagram
 ```
 
 **Caption.** Time-ordered J2: the bot run first, then the analyst's review. Bot calls use `botApiKey` and
-are scoped to the analyst (`botStartRun`, `botClaim`, `botAddEnrichment`, `botPropose`, `botFinishRun`;
-Schemathesis with a bot key, MCP tool tests vs Prism mock). Console calls use `analystAuth` (`listCases`,
+are scoped to the analyst (`botStartRun`, `botClaim`, `botGetCaseBundle`, `botAddEnrichment`, `botPropose`, `botFinishRun`;
+Schemathesis with a bot key, MCP tool tests vs Prism mock). Console calls use `analystAuth` (`listCases`, `listBotRuns`,
 `getCase`, `getTriageDecision`, `getEvidencePack`, `getNextStepsPack`, `approveAction`, `rejectAction`,
 `transitionCase`; Pact consumer + Schemathesis provider). The human-approval invariant is enforced by the
 API's approval guard, checked by the OpenAPI lint in the contract gate and by
-`contracts/examples/invalid/action.bot-approved.json`. Open item: the bot reads evidence and next steps
-through a proposed `botGetCaseBundle` (see `docs/architecture/contracts-map.md`).
+`contracts/examples/invalid/action.bot-approved.json`. The bot reads the full case through `botGetCaseBundle`, and the console shows bot activity through `listBotRuns` (gaps 1 and 2, closed by PR #33).

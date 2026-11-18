@@ -22,9 +22,9 @@ flowchart TB
   EXE["Action executor"]
   GB -->|"C04 MCP tool schemas<br/>CDC"| MCP
   SPL -->|"C01 ingestSplunkAlert<br/>SplunkWebhookPayload<br/>SV · ST"| API
-  CON -->|"C02 case/alert ops<br/>Case · TriageDecision<br/>CDC · ST"| API
+  CON -->|"C02 case/alert ops, listBotRuns<br/>Case · TriageDecision · BotRun<br/>CDC · ST"| API
   CON -->|"C03 approveAction/rejectAction<br/>ProposedAction<br/>CDC · ST"| API
-  MCP -->|"C05 bot* ops<br/>Case · EvidencePack · NextStepsPack<br/>CDC · ST"| API
+  MCP -->|"C05 bot* ops incl. botGetCaseBundle<br/>Case · CaseBundle · BotRun<br/>CDC · ST"| API
   API -->|"C06 Alert + outbox<br/>C14 AuditEvent<br/>SV"| DB
   DB -->|"C07 outbox → Alert<br/>SV"| WRK
   WRK -->|"C13 TriageDecision · Case<br/>EvidencePack · NextStepsPack<br/>SV"| DB
@@ -46,10 +46,10 @@ persistence boundaries with schema validation of what is written and read back.
 | ID | From → To | Contract (exact) | Verified by | Owner (provider) |
 |---|---|---|---|---|
 | C01 | Splunk / simulator → API | `ingestSplunkAlert`; `splunk-webhook.schema.json` (SplunkWebhookPayload); security `splunkToken`; `?severity=` 1-6 | SV (examples + simulator self-check), ST, golden alerts | Backend |
-| C02 | Console → API | `listCases`, `getCase`, `getAlert`, `getTriageDecision`, `getEvidencePack`, `getNextStepsPack`, `getCaseAudit`, `claimNext`, `releaseCase`, `assignCase`, `transitionCase`, `listActions`, `proposeAction`; schemas `Case`, `Alert`, `TriageDecision`, `EvidencePack`, `NextStepsPack`, `AuditEvent`, `ProposedAction` | CDC (Pact consumer + Prism mock), ST (provider) | Backend |
+| C02 | Console → API | `listCases`, `getCase`, `listBotRuns`, `getAlert`, `getTriageDecision`, `getEvidencePack`, `getNextStepsPack`, `getCaseAudit`, `claimNext`, `releaseCase`, `assignCase`, `transitionCase`, `listActions`, `proposeAction`; schemas `Case`, `Alert`, `TriageDecision`, `EvidencePack`, `NextStepsPack`, `AuditEvent`, `ProposedAction` | CDC (Pact consumer + Prism mock), ST (provider) | Backend |
 | C03 | Console → API | `approveAction`, `rejectAction` (security `analystAuth` only); `ProposedAction` with `decided_by.type = analyst` | CDC, ST, SV (lint + `invalid/action.bot-approved.json`), negative test bot → 403 | Backend |
 | C04 | Grok Bot → MCP adapter | MCP tools `list_my_queue`, `claim_next`, `add_enrichment`, `propose_actions`, `start_run`, `finish_run` (JSON Schemas derived from the bot operations) | CDC (tool-schema tests, adapter vs Prism mock) | Triage-Agent/ML |
-| C05 | MCP adapter → API | `botStartRun`, `botFinishRun`, `botListQueue`, `botClaim`, `botAddEnrichment`, `botPropose` (security `botApiKey` only); schemas `Case`, `EvidencePack`, `NextStepsPack` | ST with bot key, CDC, bot-scope negative tests | Backend |
+| C05 | MCP adapter → API | `botStartRun`, `botFinishRun`, `botListQueue`, `botClaim`, `botGetCaseBundle`, `botAddEnrichment`, `botPropose` (security `botApiKey` only); schemas `Case`, `CaseBundle`, `EvidencePack`, `NextStepsPack`, `BotRun` | ST with bot key, CDC, bot-scope negative tests | Backend |
 | C06 | API → Postgres | `alert.schema.json` (Alert) row + `triage_outbox` row in one transaction | SV (DB round-trip of examples) | Data/DB |
 | C07 | Postgres → worker | outbox claim (SKIP LOCKED) yielding `Alert` | SV, concurrency test | Data/DB |
 | C08 | Worker → agent | `TriageAgent` Protocol: `triage`, `build_evidence_pack`, `build_next_steps` | PM (golden alerts with mocks) | Triage-Agent/ML |
@@ -61,10 +61,15 @@ persistence boundaries with schema validation of what is written and read back.
 | C14 | API, worker, executor → Postgres | `audit-event.schema.json` (AuditEvent), hash chain | SV, chain-verifier test | Data/DB |
 | C15 | Postgres → executor | `ProposedAction` with `status = approved` only | SV, unit (executor ignores non-approved) | Backend |
 
-## Open items (found while mapping; proposed as contract-change PRs, not changed here)
+## Contract gaps
 
-1. **Bot-readable case bundle.** The bot tag has no way to read `EvidencePack` / `NextStepsPack` (those
-   operations are `analystAuth`). Proposal: `GET /v1/bot/cases/{case_id}/bundle` (`botGetCaseBundle`) returning
-   `{case, decision, evidence, next_steps}`, scoped by `on_behalf_of`. Needed for the MCP `get_case_bundle` tool.
-2. **Bot activity for the console.** No analyst-facing list of `BotRun`s. Proposal: `GET /v1/bot-runs?on_behalf_of=` (`listBotRuns`, `analystAuth`).
-3. **Executor → tooling connectors** have no contract yet (mocked). Proposal: a `Connector` Protocol in `contracts/agent/` (or `contracts/executor/`) with mocks.
+| # | Gap | Status |
+|---|---|---|
+| 1 | **Bot-readable case bundle.** The bot had no way to read `EvidencePack`/`NextStepsPack`. | **Closed** by PR #33: `botGetCaseBundle` (`GET /v1/bot/cases/{case_id}/bundle`, bot-key only, read-only, scoped to the bot's analyst) returns `CaseBundle` (`case-bundle.schema.json`). Backs the MCP `get_case_bundle` tool. |
+| 2 | **Bot activity for the console.** No analyst-facing list of `BotRun`s. | **Closed** by PR #33: `listBotRuns` (`GET /v1/bot-runs`, analyst-only, filters `on_behalf_of`/`bot_id`/`case_id`/`status`/time, paginated) returns `BotRunPage` of `BotRun` (`bot-run.schema.json`). |
+| 3 | **Executor → tooling connectors** have no contract. | Open, deliberately out of scope for the demo (connectors are mocked). Proposal: a `Connector` Protocol with mocks. |
+
+The contract gate (`scripts/validate_contracts.py`) now also enforces an explicit auth policy per operation:
+bot-only operations declare `botApiKey` and live under `/v1/bot/`, analyst-only operations (`approveAction`,
+`rejectAction`, `listBotRuns`) declare `analystAuth`, bot read-only operations are GET, and no bot-auth
+operation can approve, reject or execute.

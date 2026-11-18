@@ -6,7 +6,7 @@ flowchart TB
   START[("Case queued, assigned to analyst<br/>(produced by J1)")]
   subgraph L1["Grok Bot routine (on analyst's behalf)"]
     G1["Scheduled run starts"]
-    G2["Claim my newest assigned cases"]
+    G2["Claim my newest assigned cases,<br/>read case bundle"]
     G3["Enrich: Splunk drill-down,<br/>identity, asset, threat intel"]
     G4["Draft comms, propose actions"]
   end
@@ -39,8 +39,8 @@ flowchart TB
 **Caption.** Journey J2 in swimlanes by actor. It starts from a queued Case assigned to the analyst, which
 is the only input it takes from J1. The analyst's Grok Bot does the legwork (claim, enrich, propose); the
 analyst decides in the console; only analyst-approved actions run. Contracts: bot side `botStartRun`,
-`botClaim`, `botAddEnrichment`, `botPropose`, `botFinishRun` behind the MCP adapter (Schemathesis with a bot
-key, MCP tool tests vs Prism mock); console side `listCases`, `getCase`, `getTriageDecision`,
+`botClaim`, `botGetCaseBundle`, `botAddEnrichment`, `botPropose`, `botFinishRun` behind the MCP adapter (Schemathesis with a bot
+key, MCP tool tests vs Prism mock); console side `listCases`, `listBotRuns`, `getCase`, `getTriageDecision`,
 `getEvidencePack`, `getNextStepsPack`, `approveAction`, `rejectAction`, `transitionCase` (Pact consumer +
 Schemathesis provider); invariant `ProposedAction.decided_by.type = analyst` (schema validation and the
 bot → approve = 403 negative test).

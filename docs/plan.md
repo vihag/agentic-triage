@@ -289,8 +289,8 @@ Critical path (red): T01 → T03 → T04 → T14 → T15 → T16 → T23 → T25
 | 2026-11-18 | Split the architecture into 10 single-purpose diagrams; split journeys into J1 (machine) and J2 (analyst + bot) | Done in `docs/diagrams-v2` |
 
 Still open: how Grok Bot reaches the API (tunnel vs hosted VM); the Splunk token sits in the URL (HMAC/mTLS
-would need a custom alert action); contract gaps listed in `docs/architecture/contracts-map.md` (bot case
-bundle, bot-run listing, executor connector Protocol).
+would need a custom alert action); the executor connector Protocol (gap 3 in `docs/architecture/contracts-map.md`). Gaps 1-2 (bot case
+bundle, bot-run listing) were closed by PR #33 on 2026-11-18.
 
 ## Risks
 

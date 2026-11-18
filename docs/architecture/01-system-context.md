@@ -34,4 +34,4 @@ a system boundary and is covered by an external contract: Splunk → system is `
 analyst operations (Pact consumer tests + Prism mock); Grok Bot → system is the `/v1/bot/*` operations via
 the MCP adapter (Schemathesis + MCP tool tests against a Prism mock); system → LLM is the `LLMClient`
 Protocol (Protocol mock in CI, nightly drift run). Tooling connectors have no contract yet; they are mocked
-(see [contracts-map.md](contracts-map.md), open items).
+(see [contracts-map.md](contracts-map.md), gap 3).

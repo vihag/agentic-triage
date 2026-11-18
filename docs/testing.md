@@ -46,7 +46,9 @@ Runs in < 2 s, blocks every PR. It checks:
    proves a Grok Bot can never be `decided_by`, and `common.Principal.bot-without-analyst.json` proves a bot
    principal must carry `on_behalf_of`;
 4. `openapi.yaml` is valid OpenAPI 3.1 with all external `$ref`s resolved, plus house rules: unique
-   `operationId`, tags, `/v1` prefix, `approve`/`reject` are `analystAuth`-only, `/v1/bot/*` are `botApiKey`-only;
+   `operationId`, tags, `/v1` prefix, `approve`/`reject` are `analystAuth`-only, `/v1/bot/*` are `botApiKey`-only,
+   plus an explicit per-operation auth policy (bot-only vs analyst-only incl. `listBotRuns`; bot read-only ops
+   such as `botGetCaseBundle` must be GET; no bot-auth operation may approve, reject or execute);
 5. `contracts/agent/interfaces.py` imports; mocks satisfy the Protocols; `DefaultRoutingPolicy` matches the ADR-0005 table;
 6. `plan/issues.json` is in sync with `plan/tickets.yaml`.
 
