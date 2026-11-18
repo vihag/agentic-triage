@@ -1,0 +1,12 @@
+{
+  "event_id": "aaaaaaaa-0001-4aaa-8aaa-aaaaaaaaaaaa",
+  "seq": 1042,
+  "occurred_at": "2026-11-18T02:45:03Z",
+  "type": "case.auto_closed",
+  "actor": { "type": "triage_agent", "id": "triage-agent/0.1.0" },
+  "case_id": "88888888-8888-4888-8888-888888888888",
+  "alert_id": "77777777-7777-4777-8777-777777777777",
+  "data": { "decision_id": "99999999-9999-4999-8999-999999999999", "from": "high", "to": "low", "confidence": 0.95 },
+  "prev_hash": "0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c",
+  "hash": "4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f"
+}

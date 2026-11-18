@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SplunkWebhookPayload",
+  "description": "Body POSTed by Splunk's built-in 'Webhook' alert action (Splunk Enterprise). Splunk sends the first result row as `result` (all values are strings). Splunk does NOT include the alert severity in this body, so the saved search should either eval a `severity` field into the result row, or the webhook URL should carry ?severity=<1-6>. Unknown fields are tolerated.",
+  "type": "object",
+  "required": ["sid", "search_name", "result"],
+  "additionalProperties": true,
+  "properties": {
+    "sid": { "type": "string", "minLength": 1, "description": "Search job id" },
+    "search_name": { "type": "string", "minLength": 1 },
+    "app": { "type": "string" },
+    "owner": { "type": "string" },
+    "results_link": { "type": "string" },
+    "result": {
+      "type": "object",
+      "description": "First result row of the triggering search. Values are strings (or arrays of strings for multivalue fields).",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" } }
+        ]
+      },
+      "properties": {
+        "severity": { "type": "string", "description": "Optional. 1-6 or a name (low/medium/high/critical)." },
+        "_time": { "type": "string" },
+        "host": { "type": "string" },
+        "user": { "type": "string" },
+        "src_ip": { "type": "string" },
+        "dest_ip": { "type": "string" },
+        "count": { "type": "string" }
+      }
+    }
+  }
+}

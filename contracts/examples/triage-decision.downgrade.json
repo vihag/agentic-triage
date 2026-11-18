@@ -1,0 +1,51 @@
+{
+  "decision_id": "99999999-9999-4999-8999-999999999999",
+  "alert_id": "77777777-7777-4777-8777-777777777777",
+  "case_id": "88888888-8888-4888-8888-888888888888",
+  "decided_at": "2026-11-18T02:45:03Z",
+  "agent_version": "triage-agent/0.1.0",
+  "original_severity": "high",
+  "rule_severity": "low",
+  "final_severity": "low",
+  "direction": "downgraded",
+  "disposition": "auto_closed",
+  "confidence": 0.95,
+  "candidate_labels": [
+    { "name": "benign:av-selftest", "source": "rule", "confidence": 0.97 }
+  ],
+  "rule_results": [
+    {
+      "rule_id": "ALLOW-011-eicar-on-ci",
+      "rule_version": "1.0.0",
+      "matched": true,
+      "effect": { "op": "ceiling", "severity": "low" },
+      "labels": ["benign:av-selftest"],
+      "rationale": "EICAR test hash on a host in the CI build-agent asset group.",
+      "evidence_refs": ["ev-raw-1"]
+    },
+    {
+      "rule_id": "CROWN-001-crown-jewel-asset",
+      "rule_version": "1.0.0",
+      "matched": false,
+      "effect": { "op": "none" },
+      "rationale": "build-agent-07 is not a crown-jewel asset."
+    }
+  ],
+  "fuzzy_result": {
+    "matcher_id": "pgvector-knn+llm-judge",
+    "model": "mock",
+    "similar_items": [
+      { "ref_type": "benign_baseline", "ref_id": "BASE-03", "similarity": 0.96, "verified_severity": "informational", "verdict": "benign_true_positive", "summary": "Nightly AV self-test on CI agents." }
+    ],
+    "suggested_severity": "informational",
+    "confidence": 0.93,
+    "rationale": "Matches the nightly AV self-test baseline exactly."
+  },
+  "policy": {
+    "policy_id": "severity-routing",
+    "version": "2026-11-18",
+    "rationale": "Downgraded high->low with confidence 0.95 >= 0.85, no never_auto_close rule matched: auto-close with audit record.",
+    "guardrails_triggered": []
+  },
+  "latency_ms": 920
+}

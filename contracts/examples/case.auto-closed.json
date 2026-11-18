@@ -1,0 +1,28 @@
+{
+  "case_id": "88888888-8888-4888-8888-888888888888",
+  "alert_ids": ["77777777-7777-4777-8777-777777777777"],
+  "decision_id": "99999999-9999-4999-8999-999999999999",
+  "title": "Malware Signature Detected On Endpoint: EICAR-Test-File on build-agent-07",
+  "severity": "low",
+  "original_severity": "high",
+  "direction": "downgraded",
+  "status": "auto_closed",
+  "queue": "none",
+  "priority": 0,
+  "assignee": null,
+  "claimed_by": null,
+  "lease_expires_at": null,
+  "candidate_labels": [{ "name": "benign:av-selftest", "source": "rule", "confidence": 0.97 }],
+  "evidence_pack_id": null,
+  "next_steps_pack_id": null,
+  "pending_action_count": 0,
+  "resolution": {
+    "code": "auto_closed_downgrade",
+    "note": "Rule ALLOW-011 ceiling=low; fuzzy baseline BASE-03 (0.96).",
+    "resolved_by": { "type": "triage_agent", "id": "triage-agent/0.1.0" },
+    "resolved_at": "2026-11-18T02:45:03Z"
+  },
+  "created_at": "2026-11-18T02:45:03Z",
+  "updated_at": "2026-11-18T02:45:03Z",
+  "version": 1
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AuditEvent",
+  "description": "Append-only, hash-chained audit record. Every state change, automated decision, bot action and human approval emits one. Owned by Data/DB engineer.",
+  "type": "object",
+  "required": ["event_id", "seq", "occurred_at", "type", "actor", "data", "hash"],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": { "$ref": "common.schema.json#/$defs/Uuid" },
+    "seq": { "type": "integer", "minimum": 1 },
+    "occurred_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+    "type": {
+      "type": "string",
+      "enum": [
+        "alert.received", "alert.deduplicated", "triage.decided",
+        "case.created", "case.auto_closed", "case.queued", "case.assigned", "case.claimed", "case.released", "case.lease_expired", "case.status_changed", "case.reopened",
+        "evidence.appended", "next_steps.updated",
+        "action.proposed", "action.approved", "action.rejected", "action.executed", "action.failed",
+        "bot.run_started", "bot.run_finished", "auth.denied"
+      ]
+    },
+    "actor": { "$ref": "common.schema.json#/$defs/Principal" },
+    "case_id": { "oneOf": [{ "$ref": "common.schema.json#/$defs/Uuid" }, { "type": "null" }] },
+    "alert_id": { "oneOf": [{ "$ref": "common.schema.json#/$defs/Uuid" }, { "type": "null" }] },
+    "data": { "type": "object" },
+    "prev_hash": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "sha256(prev_hash || canonical_json(event without hash))" }
+  }
+}

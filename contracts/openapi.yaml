@@ -1,0 +1,594 @@
+openapi: 3.1.0
+info:
+  title: Agentic Triage API
+  version: 0.1.0
+  summary: Backend API for agentic re-triage of legacy SIEM (Splunk) alerts.
+  description: |
+    Contract owned by the Architect/Tech Lead and Backend engineer. Consumers: Splunk (ingest),
+    Analyst Console (frontend), Grok Bot routines (bot endpoints), QA (Schemathesis).
+
+    **Human-approval invariant.** Actions are only ever *proposed* by the triage agent or a Grok Bot.
+    `approve`/`reject` accept **analystAuth only**; a request authenticated with `botApiKey` gets 403
+    and an `auth.denied` audit event. No action executes unless its status is `approved`.
+
+    **Bot scoping.** A Grok Bot API key is bound to exactly one analyst. Bot endpoints only ever see or
+    claim cases whose `assignee` is that analyst, and every write is recorded with
+    `actor = {type: grok_bot, on_behalf_of: <analyst>}`.
+
+    Mutations on a case accept `If-Match: <case.version>` for optimistic concurrency (412 on mismatch).
+  license: { name: Proprietary (interview build) }
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+  - url: http://localhost:8080
+    description: docker-compose local
+tags:
+  - name: ingest
+  - name: alerts
+  - name: cases
+  - name: actions
+  - name: bot
+  - name: ops
+security:
+  - analystAuth: []
+
+paths:
+  /v1/healthz:
+    get:
+      tags: [ops]
+      operationId: healthz
+      security: []
+      responses:
+        '200':
+          description: Service and DB are up
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [ok, degraded] }
+                  db: { type: string }
+                  agent: { type: string }
+
+  /v1/ingest/splunk/{instance}:
+    post:
+      tags: [ingest]
+      operationId: ingestSplunkAlert
+      summary: Splunk Webhook alert action target
+      description: |
+        Point the Splunk saved search's Webhook action at
+        `https://<host>/v1/ingest/splunk/<instance>?token=<secret>&severity=$alert.severity$`.
+        (Splunk's webhook action cannot add custom headers, hence the query-string token.)
+        Returns 202 immediately; triage happens asynchronously. Idempotent on `sid`.
+      security:
+        - splunkToken: []
+      parameters:
+        - name: instance
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-z0-9-]{1,64}$' }
+        - name: severity
+          in: query
+          required: false
+          description: Splunk alert severity 1-6 (overrides result.severity if both present).
+          schema: { type: integer, minimum: 1, maximum: 6 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: './schemas/splunk-webhook.schema.json' }
+      responses:
+        '202':
+          description: Accepted for triage
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IngestAccepted' }
+        '200':
+          description: Duplicate sid; returns the existing alert
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IngestAccepted' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+
+  /v1/alerts/{alert_id}:
+    get:
+      tags: [alerts]
+      operationId: getAlert
+      parameters: [ { $ref: '#/components/parameters/AlertId' } ]
+      responses:
+        '200':
+          description: Normalised alert
+          content:
+            application/json:
+              schema: { $ref: './schemas/alert.schema.json' }
+        '404': { $ref: '#/components/responses/Problem' }
+
+  /v1/alerts/{alert_id}/decision:
+    get:
+      tags: [alerts]
+      operationId: getTriageDecision
+      parameters: [ { $ref: '#/components/parameters/AlertId' } ]
+      responses:
+        '200':
+          description: Triage decision with rule + fuzzy explanation
+          content:
+            application/json:
+              schema: { $ref: './schemas/triage-decision.schema.json' }
+        '404': { $ref: '#/components/responses/Problem' }
+
+  /v1/cases:
+    get:
+      tags: [cases]
+      operationId: listCases
+      parameters:
+        - { name: status, in: query, schema: { type: array, items: { type: string } }, style: form, explode: true }
+        - { name: queue, in: query, schema: { type: string } }
+        - { name: assignee, in: query, schema: { type: string } }
+        - { name: min_severity, in: query, schema: { $ref: './schemas/common.schema.json#/$defs/Severity' } }
+        - { name: direction, in: query, schema: { type: string, enum: [escalated, downgraded, unchanged] } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Page of cases ordered by priority desc, created_at asc
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CasePage' }
+
+  /v1/cases/{case_id}:
+    get:
+      tags: [cases]
+      operationId: getCase
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
+      responses:
+        '200':
+          description: Case
+          headers:
+            ETag: { schema: { type: string }, description: Case version }
+          content:
+            application/json:
+              schema: { $ref: './schemas/case.schema.json' }
+        '404': { $ref: '#/components/responses/Problem' }
+
+  /v1/cases/{case_id}/evidence:
+    get:
+      tags: [cases]
+      operationId: getEvidencePack
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
+      responses:
+        '200':
+          description: Evidence pack
+          content:
+            application/json:
+              schema: { $ref: './schemas/evidence-pack.schema.json' }
+        '404': { $ref: '#/components/responses/Problem' }
+
+  /v1/cases/{case_id}/next-steps:
+    get:
+      tags: [cases]
+      operationId: getNextStepsPack
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
+      responses:
+        '200':
+          description: Next steps pack
+          content:
+            application/json:
+              schema: { $ref: './schemas/next-steps-pack.schema.json' }
+        '404': { $ref: '#/components/responses/Problem' }
+
+  /v1/cases/{case_id}/audit:
+    get:
+      tags: [cases]
+      operationId: getCaseAudit
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
+      responses:
+        '200':
+          description: Audit trail, ascending seq
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: './schemas/audit-event.schema.json' }
+
+  /v1/queue/claim:
+    post:
+      tags: [cases]
+      operationId: claimNext
+      summary: Analyst claims the next case(s) from a queue
+      description: Implemented with `SELECT ... FOR UPDATE SKIP LOCKED` (ADR-0003). Returns 204 when the queue is empty.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClaimRequest' }
+      responses:
+        '200':
+          description: Claimed cases (lease set)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClaimResponse' }
+        '204': { description: Nothing to claim }
+
+  /v1/cases/{case_id}/release:
+    post:
+      tags: [cases]
+      operationId: releaseCase
+      parameters: [ { $ref: '#/components/parameters/CaseId' }, { $ref: '#/components/parameters/IfMatch' } ]
+      responses:
+        '200':
+          description: Released back to queue
+          content:
+            application/json:
+              schema: { $ref: './schemas/case.schema.json' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '412': { $ref: '#/components/responses/Problem' }
+
+  /v1/cases/{case_id}/assign:
+    post:
+      tags: [cases]
+      operationId: assignCase
+      parameters: [ { $ref: '#/components/parameters/CaseId' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignee]
+              properties:
+                assignee: { type: string }
+      responses:
+        '200':
+          description: Assigned
+          content:
+            application/json:
+              schema: { $ref: './schemas/case.schema.json' }
+        '412': { $ref: '#/components/responses/Problem' }
+
+  /v1/cases/{case_id}/transition:
+    post:
+      tags: [cases]
+      operationId: transitionCase
+      description: Move a case along the state machine (docs/uml/state-machine.md). Illegal transitions return 409.
+      parameters: [ { $ref: '#/components/parameters/CaseId' }, { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransitionRequest' }
+      responses:
+        '200':
+          description: Transitioned
+          content:
+            application/json:
+              schema: { $ref: './schemas/case.schema.json' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '412': { $ref: '#/components/responses/Problem' }
+
+  /v1/cases/{case_id}/actions:
+    get:
+      tags: [actions]
+      operationId: listActions
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
+      responses:
+        '200':
+          description: Actions on this case
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: './schemas/action.schema.json' }
+    post:
+      tags: [actions]
+      operationId: proposeAction
+      summary: Analyst proposes an action (still needs explicit approval)
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProposeActionRequest' }
+      responses:
+        '201':
+          description: Proposed
+          content:
+            application/json:
+              schema: { $ref: './schemas/action.schema.json' }
+
+  /v1/cases/{case_id}/actions/{action_id}/approve:
+    post:
+      tags: [actions]
+      operationId: approveAction
+      description: Analyst-only. Bots receive 403. Approving queues the action for execution by the Action Executor.
+      security:
+        - analystAuth: []
+      parameters: [ { $ref: '#/components/parameters/CaseId' }, { $ref: '#/components/parameters/ActionId' } ]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionRequest' }
+      responses:
+        '200':
+          description: Approved
+          content:
+            application/json:
+              schema: { $ref: './schemas/action.schema.json' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+
+  /v1/cases/{case_id}/actions/{action_id}/reject:
+    post:
+      tags: [actions]
+      operationId: rejectAction
+      security:
+        - analystAuth: []
+      parameters: [ { $ref: '#/components/parameters/CaseId' }, { $ref: '#/components/parameters/ActionId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionRequest' }
+      responses:
+        '200':
+          description: Rejected
+          content:
+            application/json:
+              schema: { $ref: './schemas/action.schema.json' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+
+  /v1/bot/runs:
+    post:
+      tags: [bot]
+      operationId: botStartRun
+      summary: A Grok Bot routine run begins
+      security: [ { botApiKey: [] } ]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                routine_id: { type: string }
+                trigger: { type: string, enum: [schedule, manual, webhook] }
+      responses:
+        '201':
+          description: Run started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BotRun' }
+
+  /v1/bot/runs/{run_id}:
+    patch:
+      tags: [bot]
+      operationId: botFinishRun
+      security: [ { botApiKey: [] } ]
+      parameters:
+        - { name: run_id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [succeeded, failed, partial] }
+                cases_processed: { type: integer, minimum: 0 }
+                summary: { type: string }
+      responses:
+        '200':
+          description: Run closed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BotRun' }
+
+  /v1/bot/queue:
+    get:
+      tags: [bot]
+      operationId: botListQueue
+      summary: Cases assigned to the bot's analyst that are queued or claimed by this bot
+      security: [ { botApiKey: [] } ]
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 20, default: 5 } }
+      responses:
+        '200':
+          description: Latest items, newest first within priority
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CasePage' }
+
+  /v1/bot/claim:
+    post:
+      tags: [bot]
+      operationId: botClaim
+      security: [ { botApiKey: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClaimRequest' }
+      responses:
+        '200':
+          description: Claimed (only cases assigned to the bot's analyst)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClaimResponse' }
+        '204': { description: Nothing to claim }
+
+  /v1/bot/cases/{case_id}/enrichments:
+    post:
+      tags: [bot]
+      operationId: botAddEnrichment
+      summary: Append read-only enrichment evidence (no approval needed; it changes nothing outside the system)
+      security: [ { botApiKey: [] } ]
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EnrichmentRequest' }
+      responses:
+        '201':
+          description: Evidence pack with new version
+          content:
+            application/json:
+              schema: { $ref: './schemas/evidence-pack.schema.json' }
+        '403': { $ref: '#/components/responses/Problem' }
+
+  /v1/bot/cases/{case_id}/proposals:
+    post:
+      tags: [bot]
+      operationId: botPropose
+      summary: Propose actions and draft responses for analyst approval; moves case to awaiting_approval
+      security: [ { botApiKey: [] } ]
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BotProposalRequest' }
+      responses:
+        '201':
+          description: Updated next steps pack (actions status=proposed)
+          content:
+            application/json:
+              schema: { $ref: './schemas/next-steps-pack.schema.json' }
+        '403': { $ref: '#/components/responses/Problem' }
+
+components:
+  securitySchemes:
+    analystAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OIDC access token for a human analyst (demo uses a dev IdP / static JWTs).
+    botApiKey:
+      type: apiKey
+      in: header
+      name: X-GrokBot-Key
+      description: Per-analyst Grok Bot key. Server resolves it to {bot_id, on_behalf_of}. Cannot approve.
+    splunkToken:
+      type: apiKey
+      in: query
+      name: token
+      description: Per-SIEM-instance shared secret embedded in the webhook URL.
+
+  parameters:
+    AlertId: { name: alert_id, in: path, required: true, schema: { type: string, format: uuid } }
+    CaseId: { name: case_id, in: path, required: true, schema: { type: string, format: uuid } }
+    ActionId: { name: action_id, in: path, required: true, schema: { type: string, format: uuid } }
+    IfMatch: { name: If-Match, in: header, required: false, schema: { type: string }, description: Expected case.version }
+
+  responses:
+    Problem:
+      description: RFC 9457 problem details
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+    IngestAccepted:
+      type: object
+      required: [alert_id, status]
+      properties:
+        alert_id: { type: string, format: uuid }
+        status: { type: string, enum: [accepted, duplicate] }
+        case_id: { type: [string, 'null'], format: uuid }
+    CasePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: './schemas/case.schema.json' }
+        next_cursor: { type: [string, 'null'] }
+    ClaimRequest:
+      type: object
+      required: [queue]
+      properties:
+        queue: { type: string, examples: [soc-high] }
+        max_items: { type: integer, minimum: 1, maximum: 10, default: 1 }
+        lease_seconds: { type: integer, minimum: 60, maximum: 3600, default: 900 }
+    ClaimResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: './schemas/case.schema.json' }
+    TransitionRequest:
+      type: object
+      required: [to_status]
+      properties:
+        to_status: { type: string, enum: [queued, in_progress, resolved, false_positive, closed] }
+        reason: { type: string }
+        resolution_code: { type: string, enum: [true_positive_contained, true_positive_no_action, false_positive, benign_true_positive, duplicate] }
+    ProposeActionRequest:
+      type: object
+      required: [type, params, rationale, risk]
+      properties:
+        type: { type: string, enum: [isolate_host, disable_user, reset_credentials, block_ip, block_domain, create_ticket, notify_owner, run_splunk_search, close_case] }
+        params: { type: object }
+        rationale: { type: string, minLength: 1 }
+        risk: { type: string, enum: [low, medium, high] }
+    DecisionRequest:
+      type: object
+      properties:
+        note: { type: string, maxLength: 2000 }
+    EnrichmentRequest:
+      type: object
+      required: [kind, title, source]
+      properties:
+        kind: { type: string, enum: [enrichment, threat_intel, asset_context, identity_context, splunk_search, llm_reasoning] }
+        title: { type: string }
+        source: { type: string }
+        data: { type: object }
+        link: { type: string }
+        run_id: { type: string, format: uuid }
+    BotProposalRequest:
+      type: object
+      required: [actions]
+      properties:
+        run_id: { type: string, format: uuid }
+        summary: { type: string, description: Bot's triage summary shown at the top of the case }
+        actions:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/ProposeActionRequest' }
+        draft_responses:
+          type: array
+          items:
+            type: object
+            required: [channel, audience, body]
+            properties:
+              channel: { type: string, enum: [email, slack, ticket] }
+              audience: { type: string }
+              subject: { type: string }
+              body: { type: string }
+    BotRun:
+      type: object
+      required: [run_id, bot_id, on_behalf_of, status, started_at]
+      properties:
+        run_id: { type: string, format: uuid }
+        bot_id: { type: string }
+        on_behalf_of: { type: string }
+        routine_id: { type: string }
+        status: { type: string, enum: [running, succeeded, failed, partial] }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: [string, 'null'], format: date-time }
+        cases_processed: { type: integer }
+        summary: { type: string }

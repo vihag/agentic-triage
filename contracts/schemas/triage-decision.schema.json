@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TriageDecision",
+  "description": "Output of the Triage Agent for one alert. Owned by Triage-Agent/ML engineer; consumed by Backend (routing) and Frontend (explanation panel).",
+  "type": "object",
+  "required": ["decision_id", "alert_id", "decided_at", "agent_version", "original_severity", "final_severity", "direction", "disposition", "confidence", "candidate_labels", "rule_results", "fuzzy_result", "policy"],
+  "additionalProperties": false,
+  "properties": {
+    "decision_id": { "$ref": "common.schema.json#/$defs/Uuid" },
+    "alert_id": { "$ref": "common.schema.json#/$defs/Uuid" },
+    "case_id": { "$ref": "common.schema.json#/$defs/Uuid" },
+    "decided_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+    "agent_version": { "type": "string" },
+    "original_severity": { "$ref": "common.schema.json#/$defs/Severity" },
+    "rule_severity": { "$ref": "common.schema.json#/$defs/Severity", "description": "Severity after deterministic rules only." },
+    "final_severity": { "$ref": "common.schema.json#/$defs/Severity" },
+    "direction": { "type": "string", "enum": ["escalated", "downgraded", "unchanged"] },
+    "disposition": {
+      "type": "string",
+      "enum": ["enqueue_for_triage", "enqueue_downgrade_review", "auto_closed", "auto_suppressed", "recorded_only"],
+      "description": "See ADR-0005 routing policy."
+    },
+    "confidence": { "$ref": "common.schema.json#/$defs/Confidence" },
+    "candidate_labels": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/CandidateLabel" } },
+    "rule_results": { "type": "array", "items": { "$ref": "#/$defs/RuleResult" } },
+    "fuzzy_result": { "oneOf": [{ "$ref": "#/$defs/FuzzyMatchResult" }, { "type": "null" }] },
+    "policy": {
+      "type": "object",
+      "required": ["policy_id", "version", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "policy_id": { "type": "string" },
+        "version": { "type": "string" },
+        "rationale": { "type": "string" },
+        "guardrails_triggered": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "latency_ms": { "type": "integer", "minimum": 0 }
+  },
+  "$defs": {
+    "SeverityEffect": {
+      "type": "object",
+      "required": ["op"],
+      "additionalProperties": false,
+      "properties": {
+        "op": { "type": "string", "enum": ["floor", "ceiling", "set", "delta", "never_auto_close", "none"] },
+        "severity": { "$ref": "common.schema.json#/$defs/Severity" },
+        "delta": { "type": "integer", "minimum": -2, "maximum": 2 }
+      }
+    },
+    "RuleResult": {
+      "type": "object",
+      "required": ["rule_id", "rule_version", "matched", "effect", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": { "type": "string" },
+        "rule_version": { "type": "string" },
+        "matched": { "type": "boolean" },
+        "effect": { "$ref": "#/$defs/SeverityEffect" },
+        "labels": { "type": "array", "items": { "type": "string" } },
+        "rationale": { "type": "string" },
+        "evidence_refs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "SimilarItem": {
+      "type": "object",
+      "required": ["ref_type", "ref_id", "similarity", "summary"],
+      "additionalProperties": false,
+      "properties": {
+        "ref_type": { "type": "string", "enum": ["past_incident", "known_pattern", "benign_baseline"] },
+        "ref_id": { "type": "string" },
+        "similarity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "verified_severity": { "$ref": "common.schema.json#/$defs/Severity" },
+        "verdict": { "type": "string", "enum": ["true_positive", "false_positive", "benign_true_positive", "unknown"] },
+        "summary": { "type": "string" }
+      }
+    },
+    "FuzzyMatchResult": {
+      "type": "object",
+      "required": ["matcher_id", "model", "similar_items", "suggested_severity", "confidence", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "matcher_id": { "type": "string" },
+        "model": { "type": "string", "description": "Embedding + LLM model ids, or 'mock'." },
+        "similar_items": { "type": "array", "items": { "$ref": "#/$defs/SimilarItem" }, "maxItems": 20 },
+        "suggested_severity": { "$ref": "common.schema.json#/$defs/Severity" },
+        "suggested_labels": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "$ref": "common.schema.json#/$defs/Confidence" },
+        "rationale": { "type": "string" }
+      }
+    }
+  }
+}

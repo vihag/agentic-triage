@@ -1,0 +1,16 @@
+{
+  "alert_id": "77777777-7777-4777-8777-777777777777",
+  "source": {
+    "system": "splunk",
+    "instance": "splunk-onprem-sg1",
+    "sid": "scheduler__admin__search__RMD5aa00bb11cc22dd33_at_1795488300_4022",
+    "search_name": "Malware Signature Detected On Endpoint",
+    "app": "SplunkEnterpriseSecuritySuite"
+  },
+  "received_at": "2026-11-18T02:45:02Z",
+  "splunk_severity": "high",
+  "title": "Malware Signature Detected On Endpoint: EICAR-Test-File on build-agent-07",
+  "entities": { "hosts": ["build-agent-07"], "file_hashes": ["275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"], "processes": ["C:\\ci\\scanner-selftest.exe"] },
+  "dedup_key": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+  "raw": { "sid": "scheduler__admin__search__RMD5aa00bb11cc22dd33_at_1795488300_4022", "search_name": "Malware Signature Detected On Endpoint", "result": { "host": "build-agent-07", "signature": "EICAR-Test-File", "severity": "5" } }
+}

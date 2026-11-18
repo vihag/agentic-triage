@@ -1,0 +1,54 @@
+{
+  "decision_id": "33333333-3333-4333-8333-333333333333",
+  "alert_id": "11111111-1111-4111-8111-111111111111",
+  "case_id": "22222222-2222-4222-8222-222222222222",
+  "decided_at": "2026-11-18T02:40:15Z",
+  "agent_version": "triage-agent/0.1.0",
+  "original_severity": "medium",
+  "rule_severity": "high",
+  "final_severity": "high",
+  "direction": "escalated",
+  "disposition": "enqueue_for_triage",
+  "confidence": 0.86,
+  "candidate_labels": [
+    { "name": "candidate:credential-stuffing", "source": "rule", "confidence": 0.9 },
+    { "name": "candidate:account-takeover", "source": "fuzzy", "confidence": 0.78 }
+  ],
+  "rule_results": [
+    {
+      "rule_id": "AUTH-003-fail-then-success-external",
+      "rule_version": "1.2.0",
+      "matched": true,
+      "effect": { "op": "floor", "severity": "high" },
+      "labels": ["candidate:credential-stuffing"],
+      "rationale": "57 failures then 1 success for the same user from a non-corporate IP within 10 minutes.",
+      "evidence_refs": ["ev-raw-1"]
+    },
+    {
+      "rule_id": "ALLOW-007-known-scanner",
+      "rule_version": "1.0.0",
+      "matched": false,
+      "effect": { "op": "none" },
+      "rationale": "Source IP not in scanner allow-list."
+    }
+  ],
+  "fuzzy_result": {
+    "matcher_id": "pgvector-knn+llm-judge",
+    "model": "embed:text-embedding-small / llm:grok-judge",
+    "similar_items": [
+      { "ref_type": "past_incident", "ref_id": "INC-2041", "similarity": 0.91, "verified_severity": "high", "verdict": "true_positive", "summary": "Credential stuffing against VPN, one account compromised." },
+      { "ref_type": "benign_baseline", "ref_id": "BASE-12", "similarity": 0.42, "verified_severity": "low", "verdict": "benign_true_positive", "summary": "User forgot password after reset." }
+    ],
+    "suggested_severity": "high",
+    "suggested_labels": ["candidate:account-takeover"],
+    "confidence": 0.82,
+    "rationale": "Closest neighbour is a confirmed credential-stuffing incident; volume and external source are inconsistent with a forgotten password."
+  },
+  "policy": {
+    "policy_id": "severity-routing",
+    "version": "2026-11-18",
+    "rationale": "Escalated medium->high: rule floor=high, fuzzy agrees (0.82 >= 0.75). Escalations always go to the human queue.",
+    "guardrails_triggered": []
+  },
+  "latency_ms": 1840
+}

@@ -1,0 +1,21 @@
+{
+  "decision_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "alert_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "decided_at": "2026-11-18T03:01:00Z",
+  "agent_version": "triage-agent/0.1.0",
+  "original_severity": "high",
+  "rule_severity": "high",
+  "final_severity": "high",
+  "direction": "unchanged",
+  "disposition": "enqueue_for_triage",
+  "confidence": 0.7,
+  "candidate_labels": [],
+  "rule_results": [],
+  "fuzzy_result": null,
+  "policy": {
+    "policy_id": "severity-routing",
+    "version": "2026-11-18",
+    "rationale": "Unchanged at high: pass through to the human queue at standard priority (no candidate label). Fuzzy matcher timed out; deterministic path only.",
+    "guardrails_triggered": ["fuzzy_timeout_fallback"]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "action_id": "66666666-6666-4666-8666-666666666666",
+  "case_id": "22222222-2222-4222-8222-222222222222",
+  "type": "disable_user",
+  "params": { "user": "jdoe" },
+  "rationale": "A bot must never be the approver.",
+  "risk": "medium",
+  "status": "approved",
+  "requires_approval": true,
+  "proposed_by": { "type": "grok_bot", "id": "grokbot-priya", "on_behalf_of": "analyst-priya" },
+  "proposed_at": "2026-11-18T02:50:00Z",
+  "decided_by": { "type": "grok_bot", "id": "grokbot-priya", "on_behalf_of": "analyst-priya" },
+  "decided_at": "2026-11-18T02:50:01Z"
+}

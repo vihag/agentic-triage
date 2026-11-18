@@ -1,0 +1,12 @@
+{
+  "event_id": "aaaaaaaa-0002-4aaa-8aaa-aaaaaaaaaaaa",
+  "seq": 1077,
+  "occurred_at": "2026-11-18T02:52:30Z",
+  "type": "action.approved",
+  "actor": { "type": "analyst", "id": "analyst-priya" },
+  "case_id": "22222222-2222-4222-8222-222222222222",
+  "alert_id": null,
+  "data": { "action_id": "66666666-6666-4666-8666-666666666666", "proposed_by": "grokbot-priya" },
+  "prev_hash": "4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f",
+  "hash": "7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b"
+}

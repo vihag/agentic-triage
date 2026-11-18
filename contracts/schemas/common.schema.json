@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Common definitions",
+  "description": "Shared types referenced by every other schema. Owned by Architect/Tech Lead.",
+  "$defs": {
+    "Uuid": { "type": "string", "format": "uuid", "pattern": "^[0-9a-fA-F-]{36}$" },
+    "Timestamp": { "type": "string", "format": "date-time" },
+    "Severity": {
+      "description": "Normalised 5-level severity. Splunk alert.severity 1-6 maps: 1,2->informational, 3->low, 4->medium, 5->high, 6->critical.",
+      "type": "string",
+      "enum": ["informational", "low", "medium", "high", "critical"]
+    },
+    "Confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "Principal": {
+      "description": "Who did something. A grok_bot principal always acts on_behalf_of an analyst.",
+      "type": "object",
+      "required": ["type", "id"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["analyst", "grok_bot", "triage_agent", "system", "splunk"] },
+        "id": { "type": "string", "minLength": 1 },
+        "display_name": { "type": "string" },
+        "on_behalf_of": { "type": "string", "description": "Analyst id. Required when type=grok_bot." }
+      },
+      "if": { "properties": { "type": { "const": "grok_bot" } } },
+      "then": { "required": ["on_behalf_of"] }
+    },
+    "CandidateLabel": {
+      "type": "object",
+      "required": ["name", "source", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_.:-]{1,63}$", "examples": ["candidate:credential-stuffing"] },
+        "source": { "type": "string", "enum": ["rule", "fuzzy", "llm", "analyst"] },
+        "confidence": { "$ref": "#/$defs/Confidence" }
+      }
+    },
+    "Entities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hosts": { "type": "array", "items": { "type": "string" } },
+        "users": { "type": "array", "items": { "type": "string" } },
+        "src_ips": { "type": "array", "items": { "type": "string" } },
+        "dest_ips": { "type": "array", "items": { "type": "string" } },
+        "processes": { "type": "array", "items": { "type": "string" } },
+        "file_hashes": { "type": "array", "items": { "type": "string" } },
+        "domains": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "action_id": "66666666-6666-4666-8666-666666666666",
+  "case_id": "22222222-2222-4222-8222-222222222222",
+  "type": "disable_user",
+  "params": { "user": "jdoe", "revoke_sessions": true },
+  "rationale": "Successful login after credential stuffing from a hosting-provider IP.",
+  "risk": "medium",
+  "status": "approved",
+  "requires_approval": true,
+  "proposed_by": { "type": "grok_bot", "id": "grokbot-priya", "on_behalf_of": "analyst-priya" },
+  "proposed_at": "2026-11-18T02:50:00Z",
+  "decided_by": { "type": "analyst", "id": "analyst-priya", "display_name": "Priya N." },
+  "decided_at": "2026-11-18T02:52:30Z",
+  "decision_note": "Confirmed with user by phone; not them."
+}

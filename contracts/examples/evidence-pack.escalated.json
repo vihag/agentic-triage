@@ -1,0 +1,20 @@
+{
+  "evidence_pack_id": "44444444-4444-4444-8444-444444444444",
+  "case_id": "22222222-2222-4222-8222-222222222222",
+  "alert_id": "11111111-1111-4111-8111-111111111111",
+  "version": 2,
+  "generated_at": "2026-11-18T02:40:15Z",
+  "generated_by": { "type": "triage_agent", "id": "triage-agent/0.1.0" },
+  "summary": "57 failed VPN logins for jdoe from 203.0.113.45 (AS64500, hosting provider) followed by one success. Pattern matches confirmed incident INC-2041.",
+  "entities": { "users": ["jdoe"], "src_ips": ["203.0.113.45"], "hosts": ["vpn-gw-01"] },
+  "items": [
+    { "evidence_id": "ev-raw-1", "kind": "raw_event", "title": "Triggering Splunk result", "source": "splunk:sid=scheduler__admin__search__RMD5f1a2b3c4d5e6f7a8_at_1795488000_4021", "collected_at": "2026-11-18T02:40:13Z", "added_by": { "type": "triage_agent", "id": "triage-agent/0.1.0" }, "data": { "failed_count": 57, "success_count": 1 } },
+    { "evidence_id": "ev-rule-1", "kind": "rule_match", "title": "AUTH-003 fail-then-success from external IP", "source": "rule-engine", "collected_at": "2026-11-18T02:40:14Z", "added_by": { "type": "triage_agent", "id": "triage-agent/0.1.0" } },
+    { "evidence_id": "ev-sim-1", "kind": "similar_incident", "title": "INC-2041 (similarity 0.91)", "source": "fuzzy-matcher", "collected_at": "2026-11-18T02:40:15Z", "added_by": { "type": "triage_agent", "id": "triage-agent/0.1.0" } },
+    { "evidence_id": "ev-enr-1", "kind": "identity_context", "title": "jdoe: Finance, MFA enrolled, no travel on record", "source": "idp-directory (mock)", "collected_at": "2026-11-18T02:50:00Z", "added_by": { "type": "grok_bot", "id": "grokbot-priya", "on_behalf_of": "analyst-priya" }, "data": { "department": "Finance", "mfa": true } }
+  ],
+  "timeline": [
+    { "ts": "2026-11-18T02:31:00Z", "description": "First failed login from 203.0.113.45", "evidence_ref": "ev-raw-1" },
+    { "ts": "2026-11-18T02:40:11Z", "description": "Successful login for jdoe", "evidence_ref": "ev-raw-1" }
+  ]
+}

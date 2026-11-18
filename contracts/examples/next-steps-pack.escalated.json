@@ -1,0 +1,30 @@
+{
+  "next_steps_pack_id": "55555555-5555-4555-8555-555555555555",
+  "case_id": "22222222-2222-4222-8222-222222222222",
+  "version": 1,
+  "generated_at": "2026-11-18T02:40:15Z",
+  "generated_by": { "type": "triage_agent", "id": "triage-agent/0.1.0" },
+  "playbook_id": "pb-credential-stuffing-v1",
+  "steps": [
+    { "step_id": "s1", "order": 1, "phase": "investigate", "title": "Check post-login activity for jdoe", "description": "Search VPN and O365 logs for the session started 02:40:11Z." },
+    {
+      "step_id": "s2", "order": 2, "phase": "contain", "title": "Disable jdoe and revoke sessions", "description": "Prevent further use of the possibly compromised account.",
+      "proposed_action": {
+        "action_id": "66666666-6666-4666-8666-666666666666",
+        "case_id": "22222222-2222-4222-8222-222222222222",
+        "type": "disable_user",
+        "params": { "user": "jdoe", "revoke_sessions": true },
+        "rationale": "Successful login after credential stuffing from a hosting-provider IP.",
+        "risk": "medium",
+        "status": "proposed",
+        "requires_approval": true,
+        "proposed_by": { "type": "triage_agent", "id": "triage-agent/0.1.0" },
+        "proposed_at": "2026-11-18T02:40:15Z"
+      }
+    },
+    { "step_id": "s3", "order": 3, "phase": "notify", "title": "Notify jdoe's manager", "description": "Use the draft below." }
+  ],
+  "draft_responses": [
+    { "channel": "email", "audience": "jdoe's manager", "subject": "Security action on jdoe's account", "body": "We detected a suspicious login to jdoe's VPN account and have temporarily disabled it while we investigate." }
+  ]
+}

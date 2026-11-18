@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProposedAction",
+  "description": "An action proposed by the triage agent, a Grok Bot or an analyst. Every action requires human approval before execution (requires_approval is const true in v1). Owned by Backend engineer.",
+  "type": "object",
+  "required": ["action_id", "case_id", "type", "params", "rationale", "risk", "status", "proposed_by", "proposed_at", "requires_approval"],
+  "additionalProperties": false,
+  "properties": {
+    "action_id": { "$ref": "common.schema.json#/$defs/Uuid" },
+    "case_id": { "$ref": "common.schema.json#/$defs/Uuid" },
+    "type": { "type": "string", "enum": ["isolate_host", "disable_user", "reset_credentials", "block_ip", "block_domain", "create_ticket", "notify_owner", "run_splunk_search", "close_case"] },
+    "params": { "type": "object" },
+    "rationale": { "type": "string", "minLength": 1 },
+    "risk": { "type": "string", "enum": ["low", "medium", "high"] },
+    "status": { "type": "string", "enum": ["proposed", "approved", "rejected", "executing", "executed", "failed", "expired"] },
+    "requires_approval": { "const": true },
+    "proposed_by": { "$ref": "common.schema.json#/$defs/Principal" },
+    "proposed_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+    "decided_by": { "$ref": "common.schema.json#/$defs/Principal" },
+    "decided_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+    "decision_note": { "type": "string" },
+    "execution_result": { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "enum": ["approved", "rejected", "executing", "executed", "failed"] } } },
+      "then": {
+        "required": ["decided_by", "decided_at"],
+        "properties": { "decided_by": { "properties": { "type": { "const": "analyst" } } } }
+      }
+    }
+  ]
+}
