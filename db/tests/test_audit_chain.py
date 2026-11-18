@@ -7,7 +7,6 @@ import uuid
 import pytest
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
-
 from tests.factory import seed_queued_case
 from triage_db.audit import AuditChainError, record_event, verify_chain
 from triage_db.queue import claim_next, reap_expired_leases, release_case
