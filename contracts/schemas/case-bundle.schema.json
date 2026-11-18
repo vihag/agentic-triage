@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CaseBundle",
+  "description": "Read-only snapshot of everything a Grok Bot needs to work one case: the Case, its TriageDecision, EvidencePack, NextStepsPack and the actions still awaiting analyst approval. Returned by botGetCaseBundle (bot-only, scoped to cases assigned to the bot's analyst). Owned by Backend engineer.",
+  "type": "object",
+  "required": ["case", "evidence_pack", "next_steps_pack", "proposed_actions", "generated_at"],
+  "additionalProperties": false,
+  "properties": {
+    "case": { "$ref": "case.schema.json" },
+    "decision": { "$ref": "triage-decision.schema.json" },
+    "evidence_pack": { "oneOf": [{ "$ref": "evidence-pack.schema.json" }, { "type": "null" }] },
+    "next_steps_pack": { "oneOf": [{ "$ref": "next-steps-pack.schema.json" }, { "type": "null" }] },
+    "proposed_actions": {
+      "type": "array",
+      "description": "Only actions with status=proposed. Decided actions are visible to analysts via listActions.",
+      "items": {
+        "allOf": [
+          { "$ref": "action.schema.json" },
+          { "properties": { "status": { "const": "proposed" } } }
+        ]
+      }
+    },
+    "generated_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+  }
+}
