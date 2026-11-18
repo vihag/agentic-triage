@@ -1,7 +1,7 @@
 """Session Postgres for repository tests.
 
-Uses TEST_DATABASE_URL when set. Otherwise creates a local database on the
-Postgres 16 + pgvector instance (the T01 image, or the distro packages).
+Uses TEST_DATABASE_URL, the same pgvector service the packages CI job sets
+(postgresql+psycopg://triage:...@localhost:5432/triage).
 """
 
 from __future__ import annotations
@@ -14,12 +14,9 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine, make_url
-from sqlalchemy.pool import NullPool
 from triage_db.roles import APP_PASSWORD, APP_ROLE
 
 DB_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-ADMIN_URL = os.environ.get("TEST_ADMIN_URL", "postgresql+psycopg://ubuntu@/postgres")
-TEST_DB = os.environ.get("TEST_DATABASE_NAME", "triage_test")
 
 TABLES = (
     "audit_events",
@@ -48,6 +45,11 @@ def normalize_url(url: str) -> str:
     return url
 
 
+def with_database(url: str, database: str) -> str:
+    """Same server, user, and password as url, with a different database name."""
+    return make_url(url).set(database=database).render_as_string(hide_password=False)
+
+
 def upgrade(url: str) -> None:
     os.environ["DATABASE_URL"] = url
     cfg = Config(os.path.join(DB_DIR, "alembic.ini"))
@@ -59,16 +61,12 @@ def upgrade(url: str) -> None:
 @pytest.fixture(scope="session")
 def database_url() -> str:
     explicit = os.environ.get("TEST_DATABASE_URL")
-    if explicit:
-        url = normalize_url(explicit)
-        upgrade(url)
-        return url
-    admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT", poolclass=NullPool)
-    with admin.connect() as connection:
-        connection.execute(text(f"DROP DATABASE IF EXISTS {TEST_DB} WITH (FORCE)"))
-        connection.execute(text(f"CREATE DATABASE {TEST_DB}"))
-    admin.dispose()
-    url = f"postgresql+psycopg://ubuntu@/{TEST_DB}"
+    if not explicit:
+        raise RuntimeError(
+            "Set TEST_DATABASE_URL to the pgvector service, for example "
+            "postgresql+psycopg://triage:local-dev-postgres-password@localhost:5432/triage"
+        )
+    url = normalize_url(explicit)
     upgrade(url)
     return url
 
