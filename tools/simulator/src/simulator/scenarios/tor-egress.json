@@ -1,0 +1,19 @@
+{
+  "sid": "scheduler__admin__search__RMD5tor0e9r3ss0001_at_1795488600_4023",
+  "search_name": "Outbound Connection To TOR Exit Node",
+  "app": "SplunkEnterpriseSecuritySuite",
+  "owner": "admin",
+  "results_link": "https://splunk.corp.example:8000/app/search/@go?sid=scheduler__admin__search__RMD5tor0e9r3ss0001_at_1795488600_4023",
+  "result": {
+    "_time": "2026-11-18T02:50:00.000+00:00",
+    "severity": "5",
+    "user": "svc-backup",
+    "src_ip": "10.0.4.22",
+    "dest_ip": "198.51.100.77",
+    "dest_port": "9001",
+    "host": "wrk-114",
+    "category": "tor-exit",
+    "bytes_out": "482331",
+    "count": "1"
+  }
+}
