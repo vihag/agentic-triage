@@ -1,18 +1,44 @@
 {
   "name": "@agentic-triage/console",
   "private": true,
-  "version": "0.0.0",
-  "description": "Console toolchain for CI. The image served by compose is still the nginx placeholder until the frontend app lands.",
+  "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "lint": "eslint .",
+    "dev": "vite",
+    "gen:api": "node scripts/gen-api.mjs",
+    "check:api": "node scripts/gen-api.mjs --check",
+    "mock": "node scripts/prism-mock.mjs",
+    "build": "npm run check:api && tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "pretest": "npm run check:api",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@tanstack/react-query": "^5.108.0",
+    "openapi-fetch": "^0.17.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@stoplight/prism-cli": "^5.14.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^10.15.0",
-    "typescript": "^6.0.3",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "js-yaml": "^5.5.0",
+    "jsdom": "^31.0.1",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3",
     "typescript-eslint": "^8.73.0",
+    "vite": "^8.3.8",
     "vitest": "^5.1.0"
   }
 }
