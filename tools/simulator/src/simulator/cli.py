@@ -12,10 +12,9 @@ from simulator.library import BURST_RECIPE, BURST_SIZE, SCENARIOS, iter_messages
 from simulator.send import build_ingest_url, post_webhook, redact_url
 from simulator.validate import find_schema, validate_messages
 
-# Compose (T01) sets the first name in each pair. The second name is the
-# original simulator name. Either works. Both set to different values is an error.
-_TOKEN_ENVS = ("SPLUNK_WEBHOOK_TOKEN", "SPLUNK_INGEST_TOKEN")
-_BASE_URL_ENVS = ("TRIAGE_API_URL", "TRIAGE_BASE_URL")
+# Same names docker-compose.yml sets. One name per setting.
+_TOKEN_ENV = "SPLUNK_WEBHOOK_TOKEN"
+_BASE_URL_ENV = "TRIAGE_API_URL"
 _INSTANCE_ENV = "SPLUNK_INSTANCE"
 _DEFAULT_BASE_URL = "http://localhost:8080"
 _DRY_RUN_TOKEN = "DRY-RUN"
@@ -45,7 +44,7 @@ def _parser() -> argparse.ArgumentParser:
     send.add_argument(
         "--base-url",
         default=None,
-        help="API origin (default: $TRIAGE_API_URL or $TRIAGE_BASE_URL, else http://localhost:8080)",
+        help="API origin (default: $TRIAGE_API_URL, else http://localhost:8080)",
     )
     send.add_argument(
         "--instance",
@@ -55,7 +54,7 @@ def _parser() -> argparse.ArgumentParser:
     send.add_argument(
         "--token",
         default=None,
-        help="splunkToken query value (default: $SPLUNK_WEBHOOK_TOKEN or $SPLUNK_INGEST_TOKEN)",
+        help="splunkToken query value (default: $SPLUNK_WEBHOOK_TOKEN)",
     )
     send.add_argument(
         "--severity",
@@ -90,41 +89,25 @@ def _cmd_list() -> int:
     return 0
 
 
-def _env_choice(names: tuple[str, ...]) -> str | None:
-    """Return the shared value of ``names``. Unset names are skipped.
-
-    Two names set to different strings is a configuration error. The values
-    are not included in the message, because one of the pairs is the ingest token.
-    """
-    present = [(name, os.environ[name]) for name in names if os.environ.get(name)]
-    if not present:
-        return None
-    if len({value for _name, value in present}) > 1:
-        joined = " and ".join(name for name, _value in present)
-        raise SimulatorError(f"{joined} are both set and disagree; set only one")
-    return present[0][1]
-
-
 def _base_url(args: argparse.Namespace) -> str:
     if args.base_url is not None:
         return args.base_url
-    return _env_choice(_BASE_URL_ENVS) or _DEFAULT_BASE_URL
+    return os.environ.get(_BASE_URL_ENV) or _DEFAULT_BASE_URL
 
 
 def _token(args: argparse.Namespace) -> str:
     if args.token is not None:
         return args.token
-    token = _env_choice(_TOKEN_ENVS)
+    token = os.environ.get(_TOKEN_ENV)
     if token:
         return token
-    names = " or ".join(_TOKEN_ENVS)
     if args.dry_run:
         print(
-            f"dry-run: {' and '.join(_TOKEN_ENVS)} unset; URL uses placeholder {_DRY_RUN_TOKEN}",
+            f"dry-run: {_TOKEN_ENV} unset; URL uses placeholder {_DRY_RUN_TOKEN}",
             file=sys.stderr,
         )
         return _DRY_RUN_TOKEN
-    raise SimulatorError(f"{names} is required (or pass --token)")
+    raise SimulatorError(f"{_TOKEN_ENV} is required (or pass --token)")
 
 
 def _cmd_send(args: argparse.Namespace) -> int:

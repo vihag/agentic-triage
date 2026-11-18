@@ -30,6 +30,8 @@ def schema_path(repo_root: Path) -> Path:
 @pytest.fixture(autouse=True)
 def _clear_ingest_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in (
+        # Legacy names the simulator no longer reads. Cleared so a shell export
+        # cannot look like support.
         "SPLUNK_INGEST_TOKEN",
         "SPLUNK_WEBHOOK_TOKEN",
         "TRIAGE_BASE_URL",

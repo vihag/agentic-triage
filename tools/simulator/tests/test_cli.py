@@ -250,7 +250,6 @@ def test_missing_token_does_not_post(ingest_server, capsys: pytest.CaptureFixtur
     captured_io = capsys.readouterr()
     assert code == 2
     assert "SPLUNK_WEBHOOK_TOKEN" in captured_io.err
-    assert "SPLUNK_INGEST_TOKEN" in captured_io.err
     assert server.captured == []
 
 
@@ -351,47 +350,51 @@ def test_build_ingest_url_encodes_and_redacts() -> None:
         build_ingest_url("http://localhost:8080", "sg1", "", 4)
 
 
-@pytest.mark.parametrize(
-    ("env_name", "env_value"),
-    [
-        ("SPLUNK_WEBHOOK_TOKEN", "compose-webhook-token"),
-        ("SPLUNK_INGEST_TOKEN", "legacy-ingest-token"),
-    ],
-)
-def test_either_token_env_is_posted(
-    ingest_server,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-    env_name: str,
-    env_value: str,
+def test_webhook_token_env_is_posted(
+    ingest_server, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     server, base = ingest_server
-    monkeypatch.setenv(env_name, env_value)
+    monkeypatch.setenv("SPLUNK_WEBHOOK_TOKEN", "compose-webhook-token")
     code = main(["send", "tor-egress", "--base-url", base])
     captured_io = capsys.readouterr()
     assert code == 0, captured_io.err
-    assert _query(server.captured[0].path)["token"] == env_value
-    assert env_value not in captured_io.out
-    assert env_value not in captured_io.err
+    assert _query(server.captured[0].path)["token"] == "compose-webhook-token"
+    assert "compose-webhook-token" not in captured_io.out
+    assert "compose-webhook-token" not in captured_io.err
 
 
-@pytest.mark.parametrize("env_name", ["TRIAGE_API_URL", "TRIAGE_BASE_URL"])
-def test_either_base_url_env_is_used(ingest_server, monkeypatch: pytest.MonkeyPatch, env_name: str) -> None:
+def test_triage_api_url_env_is_used(ingest_server, monkeypatch: pytest.MonkeyPatch) -> None:
     server, base = ingest_server
-    monkeypatch.setenv(env_name, base)
+    monkeypatch.setenv("TRIAGE_API_URL", base)
     code = main(["send", "tor-egress", "--token", TOKEN])
     assert code == 0
     assert len(server.captured) == 1
     assert server.captured[0].body == SCENARIOS["tor-egress"].read_bytes()
 
 
-def test_matching_token_envs_are_accepted(ingest_server, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_legacy_ingest_token_is_ignored(
+    ingest_server, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     server, base = ingest_server
-    monkeypatch.setenv("SPLUNK_WEBHOOK_TOKEN", "shared-token")
-    monkeypatch.setenv("SPLUNK_INGEST_TOKEN", "shared-token")
+    monkeypatch.setenv("SPLUNK_INGEST_TOKEN", "legacy-ingest-token")
     code = main(["send", "tor-egress", "--base-url", base])
-    assert code == 0
-    assert _query(server.captured[0].path)["token"] == "shared-token"
+    captured_io = capsys.readouterr()
+    assert code == 2
+    assert "SPLUNK_WEBHOOK_TOKEN" in captured_io.err
+    assert "legacy-ingest-token" not in captured_io.err
+    assert server.captured == []
+
+
+def test_legacy_base_url_is_ignored(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("TRIAGE_BASE_URL", "http://127.0.0.1:9")
+    code = main(["send", "tor-egress", "--token", TOKEN, "--dry-run"])
+    captured_io = capsys.readouterr()
+    assert code == 0, captured_io.err
+    record = json.loads(captured_io.out)
+    assert record["url"].startswith("http://localhost:8080/v1/ingest/splunk/")
+    assert "127.0.0.1" not in captured_io.out
 
 
 def test_token_flag_overrides_env(ingest_server, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -401,31 +404,3 @@ def test_token_flag_overrides_env(ingest_server, monkeypatch: pytest.MonkeyPatch
     assert code == 0
     assert _query(server.captured[0].path)["token"] == TOKEN
 
-
-def test_disagreeing_token_envs_do_not_post(
-    ingest_server, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    server, base = ingest_server
-    monkeypatch.setenv("SPLUNK_WEBHOOK_TOKEN", "webhook-secret-aaa")
-    monkeypatch.setenv("SPLUNK_INGEST_TOKEN", "ingest-secret-bbb")
-    code = main(["send", "tor-egress", "--base-url", base])
-    captured_io = capsys.readouterr()
-    assert code == 2
-    assert "disagree" in captured_io.err
-    assert "webhook-secret-aaa" not in captured_io.err
-    assert "ingest-secret-bbb" not in captured_io.err
-    assert server.captured == []
-
-
-def test_disagreeing_base_url_envs_do_not_post(
-    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("TRIAGE_API_URL", "http://api:8080")
-    monkeypatch.setenv("TRIAGE_BASE_URL", "http://localhost:9090")
-    code = main(["send", "tor-egress", "--token", TOKEN, "--dry-run"])
-    captured_io = capsys.readouterr()
-    assert code == 2
-    assert "disagree" in captured_io.err
-    assert "http://api:8080" not in captured_io.err
-    assert "http://localhost:9090" not in captured_io.err
-    assert captured_io.out == ""
