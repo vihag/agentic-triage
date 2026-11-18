@@ -21,7 +21,6 @@ import json
 import sys
 from pathlib import Path
 
-import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from openapi_spec_validator import validate as validate_openapi
 from openapi_spec_validator.readers import read_from_filename
