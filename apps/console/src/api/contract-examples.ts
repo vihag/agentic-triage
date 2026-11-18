@@ -4,6 +4,8 @@ import alertDowngrade from "../../../../contracts/examples/alert.downgrade.json"
 import alertEscalate from "../../../../contracts/examples/alert.escalate.json";
 import auditApproved from "../../../../contracts/examples/audit-event.action-approved.json";
 import auditAutoClosed from "../../../../contracts/examples/audit-event.auto-closed.json";
+import auditActionExecuting from "../../../../contracts/examples/audit-event.action-executing.json";
+import auditActionExpired from "../../../../contracts/examples/audit-event.action-expired.json";
 import caseAutoClosed from "../../../../contracts/examples/case.auto-closed.json";
 import caseEscalated from "../../../../contracts/examples/case.escalated.json";
 import evidenceEscalated from "../../../../contracts/examples/evidence-pack.escalated.json";
@@ -48,6 +50,8 @@ export const actions = {
 export const auditEvents = {
   actionApproved: asSchema<components["schemas"]["audit-event.schema"]>(auditApproved),
   autoClosed: asSchema<components["schemas"]["audit-event.schema"]>(auditAutoClosed),
+  actionExecuting: asSchema<components["schemas"]["audit-event.schema"]>(auditActionExecuting),
+  actionExpired: asSchema<components["schemas"]["audit-event.schema"]>(auditActionExpired),
 };
 
 export const webhooks = {

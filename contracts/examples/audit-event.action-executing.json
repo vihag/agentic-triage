@@ -1,0 +1,12 @@
+{
+  "event_id": "aaaaaaaa-0003-4aaa-8aaa-aaaaaaaaaaaa",
+  "seq": 1078,
+  "occurred_at": "2026-11-18T02:52:41Z",
+  "type": "action.executing",
+  "actor": { "type": "system", "id": "executor/0.1.0" },
+  "case_id": "22222222-2222-4222-8222-222222222222",
+  "alert_id": null,
+  "data": { "action_id": "66666666-6666-4666-8666-666666666666", "from": "approved", "to": "executing", "action_type": "disable_user" },
+  "prev_hash": "7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b",
+  "hash": "9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d"
+}

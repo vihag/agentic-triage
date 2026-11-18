@@ -792,14 +792,14 @@ export interface components {
         };
         /**
          * AuditEvent
-         * @description Append-only, hash-chained audit record. Every state change, automated decision, bot action and human approval emits one. Owned by Data/DB engineer.
+         * @description Append-only, hash-chained audit record. Every state change, automated decision, bot action and human approval emits one. Each ProposedAction status has its own event type (proposed, approved, rejected, executing, executed, failed, expired); a system expiry is never recorded as a rejection. Owned by Data/DB engineer.
          */
         "audit-event.schema": {
             event_id: components["schemas"]["Uuid"];
             seq: number;
             occurred_at: components["schemas"]["Timestamp"];
             /** @enum {string} */
-            type: "alert.received" | "alert.deduplicated" | "triage.decided" | "case.created" | "case.auto_closed" | "case.queued" | "case.assigned" | "case.claimed" | "case.released" | "case.lease_expired" | "case.status_changed" | "case.reopened" | "evidence.appended" | "next_steps.updated" | "action.proposed" | "action.approved" | "action.rejected" | "action.executed" | "action.failed" | "bot.run_started" | "bot.run_finished" | "auth.denied";
+            type: "alert.received" | "alert.deduplicated" | "triage.decided" | "case.created" | "case.auto_closed" | "case.queued" | "case.assigned" | "case.claimed" | "case.released" | "case.lease_expired" | "case.status_changed" | "case.reopened" | "evidence.appended" | "next_steps.updated" | "action.proposed" | "action.approved" | "action.rejected" | "action.executing" | "action.executed" | "action.failed" | "action.expired" | "bot.run_started" | "bot.run_finished" | "auth.denied";
             actor: components["schemas"]["Principal"];
             case_id?: components["schemas"]["Uuid"] | null;
             alert_id?: components["schemas"]["Uuid"] | null;
