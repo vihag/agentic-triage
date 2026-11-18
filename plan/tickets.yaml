@@ -13,7 +13,7 @@ tickets:
     milestone: M1
     owner: devops
     depends_on: []
-    contract: docs/architecture/deployment.md
+    contract: docs/architecture/02-containers-deployment.md
     acceptance:
       - "`make up` starts postgres(+pgvector), api, worker, console, simulator; `make down` cleans up"
       - Health checks wired; `GET /v1/healthz` reachable on :8080
@@ -174,7 +174,7 @@ tickets:
     milestone: M4
     owner: agent
     depends_on: [T16]
-    contract: "contracts/openapi.yaml#tag/bot, docs/uml/seq-grokbot-routine.md"
+    contract: "contracts/openapi.yaml#tag/bot, docs/uml/seq-j2-analyst-assisted-triage.md, docs/architecture/06-components-bot-mcp-adapter.md"
     acceptance:
       - "Routine prompt + schedule (every 10 min on shift) documented; one routine per analyst"
       - Thin MCP server exposing list_my_queue, claim, add_enrichment, propose; falls back to curl/REST
@@ -231,7 +231,7 @@ tickets:
     milestone: M5
     owner: qa
     depends_on: [T13, T16, T20]
-    contract: docs/uml/user-journeys.md
+    contract: "docs/uml/journey-j1-alert-ingestion-triage.md, docs/uml/journey-j2-analyst-assisted-triage.md"
     acceptance:
       - "Playwright: simulator burst -> downgrades auto-close -> escalation queued -> bot enriches + proposes -> analyst approves -> executor runs -> case resolved"
       - Runs green 5 times in a row in CI
@@ -240,7 +240,7 @@ tickets:
     milestone: M5
     owner: devops
     depends_on: [T13]
-    contract: docs/architecture/deployment.md
+    contract: docs/architecture/02-containers-deployment.md
     acceptance:
       - Structured JSON logs with alert_id/case_id correlation; OpenTelemetry traces ingest -> decision
       - "Console metrics strip: alerts in, % auto-closed, escalations, bot proposals, approval latency"

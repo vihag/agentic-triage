@@ -8,5 +8,7 @@ All services run with `docker compose up`. A **simulator** posts payloads byte-c
 ## Alternatives
 Kubernetes/kind (heavier, no demo value); live Splunk only (licensing, setup time, flaky on stage).
 
+Severity reaches the API through the URL parameter / result field, as confirmed in ADR-0005; the simulator sends both forms.
+
 ## Consequences
 Reproducible demo in one command; the simulator doubles as the golden-alert generator for tests.

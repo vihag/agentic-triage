@@ -1,7 +1,7 @@
 [
   {
     "title": "[T01] Repo scaffolding and docker-compose stack",
-    "body": "**Ticket:** T01  \n**Owner role:** DevOps  \n**Milestone:** M1 Walking skeleton (due 2026-11-19)  \n**Depends on:** none  \n**Implements contract:** `docs/architecture/deployment.md`\n\n### Acceptance criteria\n- [ ] `make up` starts postgres(+pgvector), api, worker, console, simulator; `make down` cleans up\n- [ ] Health checks wired; `GET /v1/healthz` reachable on :8080\n- [ ] .env.example documents every secret; no secrets committed\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "body": "**Ticket:** T01  \n**Owner role:** DevOps  \n**Milestone:** M1 Walking skeleton (due 2026-11-19)  \n**Depends on:** none  \n**Implements contract:** `docs/architecture/02-containers-deployment.md`\n\n### Acceptance criteria\n- [ ] `make up` starts postgres(+pgvector), api, worker, console, simulator; `make down` cleans up\n- [ ] Health checks wired; `GET /v1/healthz` reachable on :8080\n- [ ] .env.example documents every secret; no secrets committed\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
     "labels": [
       "role:devops",
       "milestone:M1",
@@ -174,7 +174,7 @@
   },
   {
     "title": "[T17] Grok Bot routine and triage tool wrapper (MCP + REST)",
-    "body": "**Ticket:** T17  \n**Owner role:** Triage-Agent/ML engineer  \n**Milestone:** M4 Grok Bot 10x (due 2026-11-21)  \n**Depends on:** T16  \n**Implements contract:** `contracts/openapi.yaml#tag/bot, docs/uml/seq-grokbot-routine.md`\n\n### Acceptance criteria\n- [ ] Routine prompt + schedule (every 10 min on shift) documented; one routine per analyst\n- [ ] Thin MCP server exposing list_my_queue, claim, add_enrichment, propose; falls back to curl/REST\n- [ ] Demo shows a bot enriching and proposing on a fresh escalated case end-to-end\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "body": "**Ticket:** T17  \n**Owner role:** Triage-Agent/ML engineer  \n**Milestone:** M4 Grok Bot 10x (due 2026-11-21)  \n**Depends on:** T16  \n**Implements contract:** `contracts/openapi.yaml#tag/bot, docs/uml/seq-j2-analyst-assisted-triage.md, docs/architecture/06-components-bot-mcp-adapter.md`\n\n### Acceptance criteria\n- [ ] Routine prompt + schedule (every 10 min on shift) documented; one routine per analyst\n- [ ] Thin MCP server exposing list_my_queue, claim, add_enrichment, propose; falls back to curl/REST\n- [ ] Demo shows a bot enriching and proposing on a fresh escalated case end-to-end\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
     "labels": [
       "role:agent",
       "milestone:M4",
@@ -240,7 +240,7 @@
   },
   {
     "title": "[T23] End-to-end demo test",
-    "body": "**Ticket:** T23  \n**Owner role:** QA/contract-test engineer  \n**Milestone:** M5 Demo hardening (due 2026-11-22)  \n**Depends on:** T13, T16, T20  \n**Implements contract:** `docs/uml/user-journeys.md`\n\n### Acceptance criteria\n- [ ] Playwright: simulator burst -> downgrades auto-close -> escalation queued -> bot enriches + proposes -> analyst approves -> executor runs -> case resolved\n- [ ] Runs green 5 times in a row in CI\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "body": "**Ticket:** T23  \n**Owner role:** QA/contract-test engineer  \n**Milestone:** M5 Demo hardening (due 2026-11-22)  \n**Depends on:** T13, T16, T20  \n**Implements contract:** `docs/uml/journey-j1-alert-ingestion-triage.md, docs/uml/journey-j2-analyst-assisted-triage.md`\n\n### Acceptance criteria\n- [ ] Playwright: simulator burst -> downgrades auto-close -> escalation queued -> bot enriches + proposes -> analyst approves -> executor runs -> case resolved\n- [ ] Runs green 5 times in a row in CI\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
     "labels": [
       "role:qa",
       "milestone:M5",
@@ -250,7 +250,7 @@
   },
   {
     "title": "[T24] Observability and demo metrics",
-    "body": "**Ticket:** T24  \n**Owner role:** DevOps  \n**Milestone:** M5 Demo hardening (due 2026-11-22)  \n**Depends on:** T13  \n**Implements contract:** `docs/architecture/deployment.md`\n\n### Acceptance criteria\n- [ ] Structured JSON logs with alert_id/case_id correlation; OpenTelemetry traces ingest -> decision\n- [ ] Console metrics strip: alerts in, % auto-closed, escalations, bot proposals, approval latency\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
+    "body": "**Ticket:** T24  \n**Owner role:** DevOps  \n**Milestone:** M5 Demo hardening (due 2026-11-22)  \n**Depends on:** T13  \n**Implements contract:** `docs/architecture/02-containers-deployment.md`\n\n### Acceptance criteria\n- [ ] Structured JSON logs with alert_id/case_id correlation; OpenTelemetry traces ingest -> decision\n- [ ] Console metrics strip: alerts in, % auto-closed, escalations, bot proposals, approval latency\n\n### Definition of done\n- [ ] Acceptance criteria met and demoed to the Architect\n- [ ] `scripts/validate_contracts.py` and all CI jobs green\n- [ ] Contract unchanged, or contract change merged first via an ADR/PR approved by the Architect",
     "labels": [
       "role:devops",
       "milestone:M5",
