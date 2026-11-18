@@ -207,13 +207,23 @@ CREATE TABLE actions (
 CREATE TABLE bot_runs (
     run_id uuid PRIMARY KEY,
     bot_id text NOT NULL REFERENCES bot_credentials (bot_id),
-    routine_id text NOT NULL,
+    routine_id text,
     status text NOT NULL,
     cases_processed integer NOT NULL DEFAULT 0,
     started_at timestamptz NOT NULL,
     finished_at timestamptz,
+    case_ids jsonb,
+    trigger text,
+    proposals_made integer,
+    enrichments_added integer,
+    document jsonb NOT NULL,
     CONSTRAINT bot_runs_status_ck CHECK (status IN ('running', 'succeeded', 'failed', 'partial')),
-    CONSTRAINT bot_runs_cases_ck CHECK (cases_processed >= 0)
+    CONSTRAINT bot_runs_cases_ck CHECK (cases_processed >= 0),
+    CONSTRAINT bot_runs_trigger_ck CHECK (
+        trigger IS NULL OR trigger IN ('schedule', 'manual', 'webhook')
+    ),
+    CONSTRAINT bot_runs_proposals_ck CHECK (proposals_made IS NULL OR proposals_made >= 0),
+    CONSTRAINT bot_runs_enrichments_ck CHECK (enrichments_added IS NULL OR enrichments_added >= 0)
 );
 
 CREATE SEQUENCE audit_events_seq AS bigint;

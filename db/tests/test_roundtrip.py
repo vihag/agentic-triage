@@ -10,9 +10,11 @@ from sqlalchemy.engine import Connection
 
 from tests.schema_check import assert_matches_example_schema
 from triage_db.repositories import (
+    compose_case_bundle,
     get_action,
     get_alert,
     get_audit_event,
+    get_bot_run,
     get_case,
     get_decision,
     get_evidence_pack,
@@ -21,6 +23,7 @@ from triage_db.repositories import (
     save_action,
     save_alert,
     save_audit_event,
+    save_bot_run_document,
     save_case,
     save_decision,
     save_evidence_pack,
@@ -36,6 +39,9 @@ EXPECTED_EXAMPLES = {
     "alert.escalate.json",
     "audit-event.action-approved.json",
     "audit-event.auto-closed.json",
+    "bot-run.finished.json",
+    "bot-run.running.json",
+    "case-bundle.escalated.json",
     "case.auto-closed.json",
     "case.escalated.json",
     "evidence-pack.escalated.json",
@@ -200,6 +206,44 @@ def test_schema_examples_round_trip(conn: Connection) -> None:
         loaded_event = get_audit_event(conn, original["event_id"])
         assert loaded_event == original
         assert_matches_example_schema(name, loaded_event)
+
+
+def test_bot_run_examples_round_trip(conn: Connection) -> None:
+    for name in ("bot-run.running.json", "bot-run.finished.json"):
+        original = load(name)
+        save_bot_run_document(conn, original)
+        loaded = get_bot_run(conn, original["run_id"])
+        assert loaded == original
+        assert_matches_example_schema(name, loaded)
+        stored = conn.execute(
+            text(
+                """
+                SELECT case_ids, trigger, proposals_made, enrichments_added
+                FROM bot_runs WHERE run_id = CAST(:run_id AS uuid)
+                """
+            ),
+            {"run_id": original["run_id"]},
+        ).one()
+        assert stored.case_ids == original.get("case_ids")
+        assert stored.trigger == original.get("trigger")
+        assert stored.proposals_made == original.get("proposals_made")
+        assert stored.enrichments_added == original.get("enrichments_added")
+
+
+def test_case_bundle_is_composed_from_stored_rows(conn: Connection) -> None:
+    bundle = load("case-bundle.escalated.json")
+    save_alert(conn, load("alert.escalate.json"))
+    save_decision(conn, bundle["decision"])
+    save_case(conn, bundle["case"])
+    save_evidence_pack(conn, bundle["evidence_pack"])
+    save_next_steps_pack(conn, bundle["next_steps_pack"])
+    for action in bundle["proposed_actions"]:
+        save_action(conn, action)
+    composed = compose_case_bundle(
+        conn, bundle["case"]["case_id"], generated_at=bundle["generated_at"]
+    )
+    assert composed == bundle
+    assert_matches_example_schema("case-bundle.escalated.json", composed)
 
 
 def test_splunk_webhook_examples_round_trip_as_alert_raw(conn: Connection) -> None:

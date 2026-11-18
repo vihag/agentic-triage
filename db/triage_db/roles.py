@@ -1,10 +1,12 @@
 """Database role the application connects as.
 
-``APP_PASSWORD`` is the local placeholder named ``APP_DB_PASSWORD`` in
-``.env.example``. The initial migration creates ``triage_app`` with that
-password when the role is missing. Rotate it with ``ALTER ROLE`` before
-Postgres is reachable beyond the demo host.
+The migration creates ``triage_app`` when the role is missing and sets its
+password from ``APP_DB_PASSWORD``. When that variable is unset, the local
+placeholder in ``.env.example`` is used so a laptop migrate still works.
+Rotate the role with ``ALTER ROLE`` before Postgres is reachable beyond the demo host.
 """
 
+import os
+
 APP_ROLE = "triage_app"
-APP_PASSWORD = "local-dev-app-password"
+APP_PASSWORD = os.environ.get("APP_DB_PASSWORD", "local-dev-app-password")

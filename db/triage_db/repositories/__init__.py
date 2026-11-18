@@ -3,6 +3,7 @@
 from triage_db.repositories.actions import get_action, save_action
 from triage_db.repositories.alerts import get_alert, get_raw, save_alert, save_webhook_payload
 from triage_db.repositories.audit_events import get_audit_event, save_audit_event
+from triage_db.repositories.bundles import compose_case_bundle
 from triage_db.repositories.cases import get_case, save_case
 from triage_db.repositories.decisions import get_decision, save_decision
 from triage_db.repositories.evidence import get_evidence_pack, save_evidence_pack
@@ -10,16 +11,20 @@ from triage_db.repositories.next_steps import get_next_steps_pack, save_next_ste
 from triage_db.repositories.reference import (
     ensure_analyst,
     ensure_siem,
+    get_bot_run,
     save_bot_credential,
     save_bot_run,
+    save_bot_run_document,
     save_incident,
     save_rule,
 )
 
 __all__ = [
+    "compose_case_bundle",
     "ensure_analyst",
     "ensure_siem",
     "get_action",
+    "get_bot_run",
     "get_alert",
     "get_audit_event",
     "get_case",
@@ -32,6 +37,7 @@ __all__ = [
     "save_audit_event",
     "save_bot_credential",
     "save_bot_run",
+    "save_bot_run_document",
     "save_case",
     "save_decision",
     "save_evidence_pack",

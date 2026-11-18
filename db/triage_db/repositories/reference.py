@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from triage_db.jsonutil import dump_json
+from triage_db.jsonutil import dump_json, load_json, parse_ts
+
+
+def _stamp(moment: datetime) -> str:
+    return moment.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def ensure_siem(conn: Connection, instance_id: str, kind: str) -> None:
@@ -75,33 +79,81 @@ def save_bot_run(
     *,
     run_id: str,
     bot_id: str,
-    routine_id: str,
+    routine_id: str | None,
     status: str,
     cases_processed: int = 0,
     started_at: datetime | None = None,
     finished_at: datetime | None = None,
+    on_behalf_of: str = "analyst-priya",
 ) -> None:
+    moment = started_at or datetime.now(timezone.utc)
+    save_bot_run_document(
+        conn,
+        {
+            "run_id": run_id,
+            "bot_id": bot_id,
+            "on_behalf_of": on_behalf_of,
+            "routine_id": routine_id,
+            "status": status,
+            "started_at": _stamp(moment),
+            "finished_at": None if finished_at is None else _stamp(finished_at),
+            "cases_processed": cases_processed,
+        },
+    )
+
+
+def save_bot_run_document(conn: Connection, document: dict[str, Any]) -> None:
+    """Persist a BotRun example. Extra fields live in columns and in document."""
+    on_behalf_of = document["on_behalf_of"]
+    ensure_analyst(conn, on_behalf_of)
+    conn.execute(
+        text(
+            """
+            INSERT INTO bot_credentials (bot_id, on_behalf_of, key_hash)
+            VALUES (:bot_id, :on_behalf_of, '')
+            ON CONFLICT (bot_id) DO NOTHING
+            """
+        ),
+        {"bot_id": document["bot_id"], "on_behalf_of": on_behalf_of},
+    )
+    case_ids = document.get("case_ids")
+    finished_at = document.get("finished_at")
     conn.execute(
         text(
             """
             INSERT INTO bot_runs (
-                run_id, bot_id, routine_id, status, cases_processed, started_at, finished_at
+                run_id, bot_id, routine_id, status, cases_processed, started_at, finished_at,
+                case_ids, trigger, proposals_made, enrichments_added, document
             ) VALUES (
                 CAST(:run_id AS uuid), :bot_id, :routine_id, :status, :cases_processed,
-                COALESCE(:started_at, now()), :finished_at
+                :started_at, :finished_at, CAST(:case_ids AS jsonb), :trigger,
+                :proposals_made, :enrichments_added, CAST(:document AS jsonb)
             )
             """
         ),
         {
-            "run_id": run_id,
-            "bot_id": bot_id,
-            "routine_id": routine_id,
-            "status": status,
-            "cases_processed": cases_processed,
-            "started_at": started_at,
-            "finished_at": finished_at,
+            "run_id": document["run_id"],
+            "bot_id": document["bot_id"],
+            "routine_id": document.get("routine_id"),
+            "status": document["status"],
+            "cases_processed": document.get("cases_processed", 0),
+            "started_at": parse_ts(document["started_at"]),
+            "finished_at": parse_ts(finished_at) if finished_at else None,
+            "case_ids": None if case_ids is None else dump_json(case_ids),
+            "trigger": document.get("trigger"),
+            "proposals_made": document.get("proposals_made"),
+            "enrichments_added": document.get("enrichments_added"),
+            "document": dump_json(document),
         },
     )
+
+
+def get_bot_run(conn: Connection, run_id: str) -> dict[str, Any]:
+    document = conn.execute(
+        text("SELECT document FROM bot_runs WHERE run_id = CAST(:run_id AS uuid)"),
+        {"run_id": run_id},
+    ).scalar_one()
+    return load_json(document)
 
 
 def save_rule(
