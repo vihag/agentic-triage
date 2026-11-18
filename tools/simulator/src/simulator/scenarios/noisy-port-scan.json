@@ -1,0 +1,18 @@
+{
+  "sid": "scheduler__admin__search__RMD5portscan000001_at_1795488900_4024",
+  "search_name": "Noisy External Port Scan",
+  "app": "search",
+  "owner": "admin",
+  "results_link": "https://splunk.corp.example:8000/app/search/@go?sid=scheduler__admin__search__RMD5portscan000001_at_1795488900_4024",
+  "result": {
+    "_time": "2026-11-18T02:55:00.000+00:00",
+    "severity": "3",
+    "src_ip": "198.51.100.10",
+    "dest_ip": "203.0.113.50",
+    "dest_port": ["22", "80", "443", "3389", "8080"],
+    "host": "edge-fw-01",
+    "signature": "ET SCAN Potential SSH Scan",
+    "known_scanner": "true",
+    "count": "1400"
+  }
+}

@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "triage-agent"
+version = "0.1.0"
+description = "In-process triage rule engine (T09). Pure rules, no model calls."
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "hypothesis>=6.112",
+    "jsonschema>=4.23",
+    "mypy>=1.11",
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+    "referencing>=0.35",
+    "ruff>=0.6",
+]
+
+[project.entry-points."triage_agent.rules"]
+auth-003 = "triage_agent.rules.auth_003:RULE"
+allow-007 = "triage_agent.rules.allow_007:RULE"
+allow-011 = "triage_agent.rules.allow_011:RULE"
+crown-001 = "triage_agent.rules.crown_001:RULE"
+priv-002 = "triage_agent.rules.priv_002:RULE"
+tor-004 = "triage_agent.rules.tor_004:RULE"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+triage_agent = ["py.typed"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "../.."]
+testpaths = ["tests"]
+addopts = [
+    "-q",
+    "--cov=triage_agent.rules",
+    "--cov-branch",
+    "--cov-report=term-missing",
+    "--cov-fail-under=100",
+]
+
+[tool.coverage.run]
+branch = true
+source_pkgs = ["triage_agent.rules"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = ["src", "../.."]
+namespace_packages = true
+explicit_package_bases = true
+files = ["src"]
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "contracts.*"
+ignore_errors = true
