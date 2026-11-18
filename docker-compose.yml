@@ -1,4 +1,4 @@
-# Local/demo stack. Contract: docs/architecture/deployment.md
+# Local/demo stack. Contract: docs/architecture/02-containers-deployment.md
 #
 # `make up` starts postgres (pgvector), api, worker x2, console, and simulator.
 # executor, triage-mcp, prism, and the otel profile are later tickets.
