@@ -1,0 +1,15 @@
+{
+  "sid": "scheduler__admin__search__RMD5aa00bb11cc22dd33_at_1795488300_4022",
+  "search_name": "Malware Signature Detected On Endpoint",
+  "app": "SplunkEnterpriseSecuritySuite",
+  "owner": "nobody",
+  "results_link": "https://splunk.corp.example:8000/app/search/@go?sid=scheduler__admin__search__RMD5aa00bb11cc22dd33_at_1795488300_4022",
+  "result": {
+    "_time": "2026-11-18T02:45:00.000+00:00",
+    "severity": "5",
+    "host": "build-agent-07",
+    "file_hash": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+    "signature": "EICAR-Test-File",
+    "process": "C:\\ci\\scanner-selftest.exe"
+  }
+}
