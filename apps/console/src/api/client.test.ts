@@ -2,7 +2,18 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "vitest";
 import { createApiClient } from "./client";
-import { actions, alerts, auditEvents, cases, decisions, evidencePacks, nextStepsPacks, webhooks } from "./contract-examples";
+import {
+  actions,
+  alerts,
+  auditEvents,
+  botRuns,
+  caseBundles,
+  cases,
+  decisions,
+  evidencePacks,
+  nextStepsPacks,
+  webhooks,
+} from "./contract-examples";
 import { mockBaseUrl } from "../test/mock-base-url";
 
 const repoRoot = path.resolve(process.cwd(), "../..");
@@ -138,6 +149,19 @@ test("typed client reads contract examples from the Prism mock", async () => {
     status: "accepted",
     case_id: cases.escalated.case_id,
   });
+
+  expect(dataOf(await client.GET("/v1/bot-runs"))).toEqual({
+    items: [botRuns.running, botRuns.finished],
+    next_cursor: null,
+  });
+  expect(
+    dataOf(
+      await client.GET("/v1/bot/cases/{case_id}/bundle", {
+        params: { path: { case_id: caseBundles.escalated.case.case_id } },
+        headers: { "X-GrokBot-Key": "dev-bot" },
+      }),
+    ),
+  ).toEqual(caseBundles.escalated);
 });
 
 test("every positive example file is referenced by the typed fixtures", () => {
@@ -145,6 +169,9 @@ test("every positive example file is referenced by the typed fixtures", () => {
   const files = readdirSync(examplesDir).filter((file) => file.endsWith(".json")).sort();
   const referenced = [
     "action.approved.json",
+    "bot-run.finished.json",
+    "bot-run.running.json",
+    "case-bundle.escalated.json",
     "alert.downgrade.json",
     "alert.escalate.json",
     "audit-event.action-approved.json",

@@ -63,6 +63,8 @@ export function buildPrismSpec() {
   const audits = [...take("audit-event")].sort((a, b) => a.value.seq - b.value.seq);
   const actions = take("action");
   const webhooks = take("splunk-webhook");
+  const botRuns = take("bot-run");
+  const caseBundles = take("case-bundle");
 
   const caseItems = cases
     .map((example) => example.value)
@@ -123,25 +125,16 @@ export function buildPrismSpec() {
     useExamples(responseJson(operation(operationId), status), actions[0].value, named(actions));
   }
 
-  const running = {
-    run_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-    bot_id: "grokbot-priya",
-    on_behalf_of: "analyst-priya",
-    routine_id: "shift-routine",
-    status: "running",
-    started_at: "2026-11-18T02:50:00Z",
-    finished_at: null,
-    cases_processed: 0,
-  };
-  const succeeded = {
-    ...running,
-    status: "succeeded",
-    finished_at: "2026-11-18T03:00:00Z",
-    cases_processed: 1,
-    summary: "Mock run closed by the console Prism server.",
-  };
-  useExamples(responseJson(operation("botStartRun"), "201"), running, [["running", running]]);
-  useExamples(responseJson(operation("botFinishRun"), "200"), succeeded, [["succeeded", succeeded]]);
+  const runningRun = botRuns.find((example) => example.variant === "running") ?? botRuns[0];
+  const finishedRun = botRuns.find((example) => example.variant === "finished") ?? botRuns[0];
+  const botRunItems = botRuns
+    .map((example) => example.value)
+    .sort((a, b) => String(b.started_at).localeCompare(String(a.started_at)));
+  const botRunPage = { items: botRunItems, next_cursor: null };
+  useExamples(responseJson(operation("botStartRun"), "201"), runningRun.value, [["running", runningRun.value]]);
+  useExamples(responseJson(operation("botFinishRun"), "200"), finishedRun.value, [["finished", finishedRun.value]]);
+  useExamples(responseJson(operation("listBotRuns"), "200"), botRunPage, [["page", botRunPage]]);
+  useExamples(responseJson(operation("botGetCaseBundle"), "200"), caseBundles[0].value, named(caseBundles));
 
   for (const operationId of operations.keys()) {
     if (!wired.has(operationId)) {

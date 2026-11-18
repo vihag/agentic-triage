@@ -13,6 +13,9 @@ import webhookEscalate from "../../../../contracts/examples/splunk-webhook.escal
 import decisionDowngrade from "../../../../contracts/examples/triage-decision.downgrade.json";
 import decisionEscalate from "../../../../contracts/examples/triage-decision.escalate.json";
 import decisionUnchanged from "../../../../contracts/examples/triage-decision.unchanged.json";
+import botRunFinished from "../../../../contracts/examples/bot-run.finished.json";
+import botRunRunning from "../../../../contracts/examples/bot-run.running.json";
+import caseBundleEscalated from "../../../../contracts/examples/case-bundle.escalated.json";
 
 export const alerts = {
   downgrade: asSchema<components["schemas"]["alert.schema"]>(alertDowngrade),
@@ -50,6 +53,15 @@ export const auditEvents = {
 export const webhooks = {
   downgrade: asSchema<components["schemas"]["splunk-webhook.schema"]>(webhookDowngrade),
   escalate: asSchema<components["schemas"]["splunk-webhook.schema"]>(webhookEscalate),
+};
+
+export const botRuns = {
+  finished: asSchema<components["schemas"]["bot-run.schema"]>(botRunFinished),
+  running: asSchema<components["schemas"]["bot-run.schema"]>(botRunRunning),
+};
+
+export const caseBundles = {
+  escalated: asSchema<components["schemas"]["case-bundle.schema"]>(caseBundleEscalated),
 };
 
 // JSON imports widen enums to string. scripts/validate_contracts.py is what checks the documents.

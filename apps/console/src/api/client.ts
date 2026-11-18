@@ -6,7 +6,6 @@ export type ApiClient = Client<paths>;
 export interface ApiClientOptions {
   baseUrl: string;
   token?: string;
-  botKey?: string;
   splunkToken?: string;
   headers?: HeadersInit;
 }
@@ -17,7 +16,6 @@ export const DEV_API_TOKEN = "dev-analyst";
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const headers = new Headers(options.headers);
   if (options.token) headers.set("Authorization", `Bearer ${options.token}`);
-  if (options.botKey) headers.set("X-GrokBot-Key", options.botKey);
   const client = createClient<paths>({
     baseUrl: options.baseUrl.replace(/\/$/u, ""),
     headers,

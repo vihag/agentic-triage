@@ -348,6 +348,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/bot/cases/{case_id}/bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read-only bundle of one case for the bot (Case, decision, EvidencePack, NextStepsPack, proposed actions)
+         * @description Bot-only and read-only. Returns 403 (and emits an `auth.denied` AuditEvent) unless the case's
+         *     `assignee` equals the bot key's `on_behalf_of` analyst. Does not claim, lock or modify the case.
+         *     Added in contract change "botGetCaseBundle and listBotRuns" (unblocks J2 "read the full case").
+         */
+        get: operations["botGetCaseBundle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/bot/cases/{case_id}/enrichments": {
         parameters: {
             query?: never;
@@ -376,6 +398,27 @@ export interface paths {
         put?: never;
         /** Propose actions and draft responses for analyst approval; moves case to awaiting_approval */
         post: operations["botPropose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bot-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Console view of Grok Bot routine runs (bot activity)
+         * @description Analyst-only. Lists BotRuns newest first. Filters combine with AND. Bot keys cannot call this.
+         *     Added in contract change "botGetCaseBundle and listBotRuns" (unblocks the console bot-activity view).
+         */
+        get: operations["listBotRuns"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -458,21 +501,12 @@ export interface components {
                 body: string;
             }[];
         };
-        BotRun: {
-            /** Format: uuid */
-            run_id: string;
-            bot_id: string;
-            on_behalf_of: string;
-            routine_id?: string;
-            /** @enum {string} */
-            status: "running" | "succeeded" | "failed" | "partial";
-            /** Format: date-time */
-            started_at: string;
-            /** Format: date-time */
-            finished_at?: string | null;
-            cases_processed?: number;
-            summary?: string;
+        BotRun: components["schemas"]["bot-run.schema"];
+        BotRunPage: {
+            items: components["schemas"]["bot-run.schema"][];
+            next_cursor?: string | null;
         };
+        CaseBundle: components["schemas"]["case-bundle.schema"];
         /**
          * SplunkWebhookPayload
          * @description Body POSTed by Splunk's built-in 'Webhook' alert action (Splunk Enterprise). Splunk sends the first result row as `result` (all values are strings). Splunk does NOT include the alert severity in this body, so the saved search should either eval a `severity` field into the result row, or the webhook URL should carry ?severity=<1-6>. Unknown fields are tolerated.
@@ -773,6 +807,46 @@ export interface components {
             prev_hash?: string | null;
             /** @description sha256(prev_hash || canonical_json(event without hash)) */
             hash: string;
+        };
+        /**
+         * BotRun
+         * @description One execution of an analyst's Grok Bot routine. Written via botStartRun/botFinishRun, read by the console via listBotRuns. Superset of the BotRun object previously inlined in openapi.yaml (same required fields; new fields are optional), so the change is backwards compatible. Owned by Backend engineer. Field constraints are deliberately no stricter than the old inline definition.
+         */
+        "bot-run.schema": {
+            /** Format: uuid */
+            run_id: string;
+            bot_id: string;
+            /** @description Analyst id the bot key is bound to. */
+            on_behalf_of: string;
+            routine_id?: string;
+            /** @enum {string} */
+            trigger?: "schedule" | "manual" | "webhook";
+            /** @enum {string} */
+            status: "running" | "succeeded" | "failed" | "partial";
+            started_at: components["schemas"]["Timestamp"];
+            finished_at?: components["schemas"]["Timestamp"] | null;
+            cases_processed?: number;
+            /** @description Cases this run claimed, enriched or proposed on (added for listBotRuns?case_id= filtering). */
+            case_ids?: components["schemas"]["Uuid"][];
+            proposals_made?: number;
+            enrichments_added?: number;
+            summary?: string;
+        };
+        /**
+         * CaseBundle
+         * @description Read-only snapshot of everything a Grok Bot needs to work one case: the Case, its TriageDecision, EvidencePack, NextStepsPack and the actions still awaiting analyst approval. Returned by botGetCaseBundle (bot-only, scoped to cases assigned to the bot's analyst). Owned by Backend engineer.
+         */
+        "case-bundle.schema": {
+            case: components["schemas"]["case.schema"];
+            decision?: components["schemas"]["triage-decision.schema"];
+            evidence_pack: components["schemas"]["evidence-pack.schema"] | null;
+            next_steps_pack: components["schemas"]["next-steps-pack.schema"] | null;
+            /** @description Only actions with status=proposed. Decided actions are visible to analysts via listActions. */
+            proposed_actions: (components["schemas"]["action.schema"] & {
+                /** @constant */
+                status?: "proposed";
+            })[];
+            generated_at: components["schemas"]["Timestamp"];
         };
     };
     responses: {
@@ -1281,7 +1355,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BotRun"];
+                    "application/json": components["schemas"]["bot-run.schema"];
                 };
             };
         };
@@ -1312,7 +1386,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BotRun"];
+                    "application/json": components["schemas"]["bot-run.schema"];
                 };
             };
         };
@@ -1370,6 +1444,33 @@ export interface operations {
             };
         };
     };
+    botGetCaseBundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: components["parameters"]["CaseId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Case bundle */
+            200: {
+                headers: {
+                    /** @description Case version */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["case-bundle.schema"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
     botAddEnrichment: {
         parameters: {
             query?: never;
@@ -1421,6 +1522,40 @@ export interface operations {
                     "application/json": components["schemas"]["next-steps-pack.schema"];
                 };
             };
+            403: components["responses"]["Problem"];
+        };
+    };
+    listBotRuns: {
+        parameters: {
+            query?: {
+                /** @description Analyst id the bot acts for */
+                on_behalf_of?: string;
+                bot_id?: string;
+                /** @description Runs that touched this case */
+                case_id?: string;
+                status?: "running" | "succeeded" | "failed" | "partial";
+                started_after?: string;
+                started_before?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of bot runs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BotRunPage"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
         };
     };
