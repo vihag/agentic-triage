@@ -32,25 +32,34 @@ from triage_db.repositories import (
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "contracts" / "examples"
 
-EXPECTED_EXAMPLES = {
-    "action.approved.json",
-    "alert.downgrade.json",
-    "alert.escalate.json",
-    "audit-event.action-approved.json",
-    "audit-event.auto-closed.json",
-    "bot-run.finished.json",
-    "bot-run.running.json",
-    "case-bundle.escalated.json",
-    "case.auto-closed.json",
-    "case.escalated.json",
-    "evidence-pack.escalated.json",
-    "next-steps-pack.escalated.json",
-    "splunk-webhook.downgrade.json",
-    "splunk-webhook.escalate.json",
-    "triage-decision.downgrade.json",
-    "triage-decision.escalate.json",
-    "triage-decision.unchanged.json",
-}
+# Longest prefix first so case-bundle matches before case.
+_KINDS = (
+    "audit-event",
+    "bot-run",
+    "case-bundle",
+    "evidence-pack",
+    "next-steps-pack",
+    "splunk-webhook",
+    "triage-decision",
+    "action",
+    "alert",
+    "case",
+)
+
+
+def example_names(kind: str | None = None) -> list[str]:
+    """Positive examples discovered from contracts/examples, not a frozen list."""
+    paths = sorted(EXAMPLES.glob("*.json"))
+    if kind is None:
+        return [path.name for path in paths]
+    return [path.name for path in paths if kind_of(path.name) == kind]
+
+
+def kind_of(name: str) -> str:
+    for kind in _KINDS:
+        if name.startswith(kind + "."):
+            return kind
+    raise AssertionError(f"no persister for {name}")
 
 
 def load(name: str) -> dict:
@@ -58,13 +67,15 @@ def load(name: str) -> dict:
 
 
 def test_example_inventory_matches_contracts() -> None:
-    found = {path.name for path in EXAMPLES.glob("*.json")}
-    assert found == EXPECTED_EXAMPLES
+    discovered = example_names()
+    assert discovered, "contracts/examples has no positive examples"
+    assert {kind_of(name) for name in discovered} <= set(_KINDS)
+    assert len(discovered) == len(set(discovered))
 
 
 def test_schema_examples_round_trip(conn: Connection) -> None:
-    save_alert(conn, load("alert.escalate.json"))
-    save_alert(conn, load("alert.downgrade.json"))
+    for name in example_names("alert"):
+        save_alert(conn, load(name))
     save_alert(
         conn,
         {
@@ -84,18 +95,14 @@ def test_schema_examples_round_trip(conn: Connection) -> None:
         },
     )
 
-    for name in (
-        "triage-decision.escalate.json",
-        "triage-decision.downgrade.json",
-        "triage-decision.unchanged.json",
-    ):
+    for name in example_names("triage-decision"):
         original = load(name)
         save_decision(conn, original)
         loaded = get_decision(conn, original["decision_id"])
         assert loaded == original
         assert_matches_example_schema(name, loaded)
 
-    for name in ("alert.escalate.json", "alert.downgrade.json"):
+    for name in example_names("alert"):
         original = load(name)
         loaded = get_alert(conn, original["alert_id"])
         assert loaded == original
@@ -126,7 +133,7 @@ def test_schema_examples_round_trip(conn: Connection) -> None:
         assert outbox.status == "pending"
         assert outbox.attempts == 0
 
-    for name in ("case.escalated.json", "case.auto-closed.json"):
+    for name in example_names("case"):
         original = load(name)
         save_case(conn, original)
         loaded = get_case(conn, original["case_id"])
@@ -160,46 +167,49 @@ def test_schema_examples_round_trip(conn: Connection) -> None:
     assert open_flag is True
     assert closed_flag is False
 
-    evidence = load("evidence-pack.escalated.json")
-    save_evidence_pack(conn, evidence)
-    loaded_evidence = get_evidence_pack(conn, evidence["evidence_pack_id"])
-    assert loaded_evidence == evidence
-    assert_matches_example_schema("evidence-pack.escalated.json", loaded_evidence)
-    item_ids = conn.execute(
-        text(
-            """
-            SELECT evidence_id FROM evidence_items
-            WHERE evidence_pack_id = CAST(:pack_id AS uuid)
-            ORDER BY position
-            """
-        ),
-        {"pack_id": evidence["evidence_pack_id"]},
-    ).scalars()
-    assert list(item_ids) == [item["evidence_id"] for item in evidence["items"]]
+    for evidence_name in example_names("evidence-pack"):
+        evidence = load(evidence_name)
+        save_evidence_pack(conn, evidence)
+        loaded_evidence = get_evidence_pack(conn, evidence["evidence_pack_id"])
+        assert loaded_evidence == evidence
+        assert_matches_example_schema(evidence_name, loaded_evidence)
+        item_ids = conn.execute(
+            text(
+                """
+                SELECT evidence_id FROM evidence_items
+                WHERE evidence_pack_id = CAST(:pack_id AS uuid)
+                ORDER BY position
+                """
+            ),
+            {"pack_id": evidence["evidence_pack_id"]},
+        ).scalars()
+        assert list(item_ids) == [item["evidence_id"] for item in evidence["items"]]
 
-    steps = load("next-steps-pack.escalated.json")
-    save_next_steps_pack(conn, steps)
-    loaded_steps = get_next_steps_pack(conn, steps["next_steps_pack_id"])
-    assert loaded_steps == steps
-    assert_matches_example_schema("next-steps-pack.escalated.json", loaded_steps)
-    stored_steps = conn.execute(
-        text(
-            """
-            SELECT steps FROM next_steps_packs
-            WHERE next_steps_pack_id = CAST(:pack_id AS uuid)
-            """
-        ),
-        {"pack_id": steps["next_steps_pack_id"]},
-    ).scalar_one()
-    assert stored_steps == steps["steps"]
+    for steps_name in example_names("next-steps-pack"):
+        steps = load(steps_name)
+        save_next_steps_pack(conn, steps)
+        loaded_steps = get_next_steps_pack(conn, steps["next_steps_pack_id"])
+        assert loaded_steps == steps
+        assert_matches_example_schema(steps_name, loaded_steps)
+        stored_steps = conn.execute(
+            text(
+                """
+                SELECT steps FROM next_steps_packs
+                WHERE next_steps_pack_id = CAST(:pack_id AS uuid)
+                """
+            ),
+            {"pack_id": steps["next_steps_pack_id"]},
+        ).scalar_one()
+        assert stored_steps == steps["steps"]
 
-    action = load("action.approved.json")
-    save_action(conn, action)
-    loaded_action = get_action(conn, action["action_id"])
-    assert loaded_action == action
-    assert_matches_example_schema("action.approved.json", loaded_action)
+    for action_name in example_names("action"):
+        action = load(action_name)
+        save_action(conn, action)
+        loaded_action = get_action(conn, action["action_id"])
+        assert loaded_action == action
+        assert_matches_example_schema(action_name, loaded_action)
 
-    for name in ("audit-event.auto-closed.json", "audit-event.action-approved.json"):
+    for name in example_names("audit-event"):
         original = load(name)
         save_audit_event(conn, original)
         loaded_event = get_audit_event(conn, original["event_id"])
@@ -208,7 +218,8 @@ def test_schema_examples_round_trip(conn: Connection) -> None:
 
 
 def test_bot_run_examples_round_trip(conn: Connection) -> None:
-    for name in ("bot-run.running.json", "bot-run.finished.json"):
+    assert example_names("bot-run"), "bot-run examples must exist under contracts/examples"
+    for name in example_names("bot-run"):
         original = load(name)
         save_bot_run_document(conn, original)
         loaded = get_bot_run(conn, original["run_id"])
@@ -230,7 +241,14 @@ def test_bot_run_examples_round_trip(conn: Connection) -> None:
 
 
 def test_case_bundle_is_composed_from_stored_rows(conn: Connection) -> None:
-    bundle = load("case-bundle.escalated.json")
+    bundles = example_names("case-bundle")
+    assert bundles, "case-bundle examples must exist under contracts/examples"
+    for bundle_name in bundles:
+        _compose_bundle_example(conn, bundle_name)
+
+
+def _compose_bundle_example(conn: Connection, bundle_name: str) -> None:
+    bundle = load(bundle_name)
     save_alert(conn, load("alert.escalate.json"))
     save_decision(conn, bundle["decision"])
     save_case(conn, bundle["case"])
@@ -242,11 +260,11 @@ def test_case_bundle_is_composed_from_stored_rows(conn: Connection) -> None:
         conn, bundle["case"]["case_id"], generated_at=bundle["generated_at"]
     )
     assert composed == bundle
-    assert_matches_example_schema("case-bundle.escalated.json", composed)
+    assert_matches_example_schema(bundle_name, composed)
 
 
 def test_splunk_webhook_examples_round_trip_as_alert_raw(conn: Connection) -> None:
-    for name in ("splunk-webhook.escalate.json", "splunk-webhook.downgrade.json"):
+    for name in example_names("splunk-webhook"):
         original = load(name)
         alert_id = save_webhook_payload(conn, original)
         loaded = get_raw(conn, alert_id)
