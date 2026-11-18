@@ -35,16 +35,16 @@ SPLUNK_WEBHOOK_TOKEN=dev tools/simulator/simulator send burst
 
 | Flag / env | Default | Role |
 |---|---|---|
-| `--base-url` / `TRIAGE_API_URL` or `TRIAGE_BASE_URL` | `http://localhost:8080` | API origin. The tool appends `/v1/ingest/splunk/{instance}`. |
+| `--base-url` / `TRIAGE_API_URL` | `http://localhost:8080` | API origin. The tool appends `/v1/ingest/splunk/{instance}`. |
 | `--instance` / `SPLUNK_INSTANCE` | `splunk-onprem-sg1` | Path parameter. Matches the alert examples. |
-| `--token` / `SPLUNK_WEBHOOK_TOKEN` or `SPLUNK_INGEST_TOKEN` | required to send | `splunkToken` query parameter. Printed URLs show `token=REDACTED`. |
+| `--token` / `SPLUNK_WEBHOOK_TOKEN` | required to send | `splunkToken` query parameter. Printed URLs show `token=REDACTED`. |
 | `--severity` | `result.severity` | Query override (1-6). The body stays the scenario bytes. |
 | `--dry-run` | off | Validate and print the requests. No socket. |
 | `SPLUNK_WEBHOOK_SCHEMA` | walk up to `contracts/schemas/splunk-webhook.schema.json` | Schema used before send. |
 
 HTTP 202 (accepted) and 200 (duplicate `sid`) are success. Any other status stops the command; alerts already accepted stay accepted. Redirects are not followed.
 
-Compose names from T01 are `TRIAGE_API_URL` and `SPLUNK_WEBHOOK_TOKEN`. `TRIAGE_BASE_URL` and `SPLUNK_INGEST_TOKEN` are accepted as the same settings. A flag wins over the environment. If both names in a pair are set to different values, send stops and does not print the values.
+The simulator reads `TRIAGE_API_URL` and `SPLUNK_WEBHOOK_TOKEN`, the same names `docker-compose.yml` sets. A flag wins over the environment.
 
 ## Tests
 
