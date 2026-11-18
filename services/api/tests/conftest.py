@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 
 import pytest
@@ -55,6 +56,10 @@ def settings() -> Settings:
 
 @pytest.fixture
 def client(settings: Settings, audit: RecordingAudit) -> Iterator[TestClient]:
+    if test_url := os.environ.get("TEST_DATABASE_URL"):
+        os.environ["DATABASE_URL"] = test_url
+    elif not os.environ.get("DATABASE_URL"):
+        os.environ["DATABASE_URL"] = "postgresql+psycopg://127.0.0.1:9/triage_test"
     application = create_app(settings=settings, audit=audit)
     with TestClient(application) as test_client:
         yield test_client

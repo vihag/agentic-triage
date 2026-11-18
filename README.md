@@ -87,6 +87,19 @@ reproduce the example decisions; `plan/issues.json` is in sync.
 
 Render diagrams (needs `@mermaid-js/mermaid-cli`): `make diagrams` writes `docs/rendered/<name>.svg` and `<name>.png` (2x). Names come from a `%% name:` comment on the first line of each mermaid block. Set `MMDC=` and `CHROME_PATH=` if needed.
 
+## Local demo runbook (clickable slice)
+
+```bash
+cp -n .env.example .env
+make up
+# Send a sample Splunk webhook (see tools/simulator/README.md)
+make -C tools/simulator send ARGS=escalate
+# Analyst console (queue + case detail + approve/reject)
+open http://localhost:5173
+```
+
+Use the demo analyst JWT from `.env.example` in the console dev setup. The API serves real Postgres data once ingest and the worker have run.
+
 ## Where to start reading
 
 1. [Architecture index](docs/architecture/README.md): context, containers, components, DFDs, [contract map](docs/architecture/contracts-map.md)
