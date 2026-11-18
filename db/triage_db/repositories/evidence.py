@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
+from triage_db.audit import SYSTEM_ACTOR, record_event
 from triage_db.jsonutil import dump_json, load_json, parse_ts
 
 
-def save_evidence_pack(conn: Connection, document: dict[str, Any]) -> None:
+def save_evidence_pack(
+    conn: Connection, document: dict[str, Any], *, actor: Mapping[str, Any] | None = None
+) -> None:
     conn.execute(
         text(
             """
@@ -58,6 +62,14 @@ def save_evidence_pack(conn: Connection, document: dict[str, Any]) -> None:
                 "collected_at": parse_ts(item["collected_at"]),
             },
         )
+    record_event(
+        conn,
+        event_type="evidence.appended",
+        actor=dict(actor) if actor is not None else dict(SYSTEM_ACTOR),
+        case_id=document["case_id"],
+        alert_id=document.get("alert_id"),
+        data={"evidence_pack_id": document["evidence_pack_id"], "version": document["version"]},
+    )
 
 
 def get_evidence_pack(conn: Connection, evidence_pack_id: str) -> dict[str, Any]:

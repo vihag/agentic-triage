@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
+from triage_db.audit import SYSTEM_ACTOR, record_event
 from triage_db.jsonutil import dump_json, load_json, parse_ts
 from triage_db.repositories.reference import ensure_siem
 
 
-def save_alert(conn: Connection, document: dict[str, Any]) -> None:
+def save_alert(
+    conn: Connection, document: dict[str, Any], *, actor: Mapping[str, Any] | None = None
+) -> None:
     source = document["source"]
     instance_id = source.get("instance") or "unknown"
     ensure_siem(conn, instance_id, source["system"])
@@ -52,6 +56,13 @@ def save_alert(conn: Connection, document: dict[str, Any]) -> None:
             """
         ),
         {"alert_id": document["alert_id"]},
+    )
+    record_event(
+        conn,
+        event_type="alert.received",
+        actor=dict(actor) if actor is not None else dict(SYSTEM_ACTOR),
+        alert_id=document["alert_id"],
+        data={"sid": source["sid"], "alert_id": document["alert_id"]},
     )
 
 

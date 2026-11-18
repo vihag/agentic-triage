@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
+from triage_db.audit import SYSTEM_ACTOR, case_insert_event, record_event
 from triage_db.jsonutil import dump_json, load_json, parse_ts
 from triage_db.repositories.reference import ensure_analyst
 
 OPEN_STATUSES = frozenset({"queued", "claimed", "in_progress", "awaiting_approval"})
 
 
-def save_case(conn: Connection, document: dict[str, Any]) -> None:
+def save_case(
+    conn: Connection, document: dict[str, Any], *, actor: Mapping[str, Any] | None = None
+) -> None:
     assignee = document.get("assignee")
     if assignee:
         ensure_analyst(conn, assignee)
@@ -69,6 +73,14 @@ def save_case(conn: Connection, document: dict[str, Any]) -> None:
         )
         if updated.rowcount != 1:
             raise LookupError(f"alert {alert_id} is not stored; cannot group it into {document['case_id']}")
+    record_event(
+        conn,
+        event_type=case_insert_event(document["status"]),
+        actor=dict(actor) if actor is not None else dict(SYSTEM_ACTOR),
+        case_id=document["case_id"],
+        alert_id=document["alert_ids"][0],
+        data={"status": document["status"], "queue": document["queue"], "decision_id": document["decision_id"]},
+    )
 
 
 def get_case(conn: Connection, case_id: str) -> dict[str, Any]:
