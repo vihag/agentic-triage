@@ -36,6 +36,7 @@ services:
       SPLUNK_WEBHOOK_TOKEN: ${SPLUNK_WEBHOOK_TOKEN}
       GROK_BOT_API_KEY: ${GROK_BOT_API_KEY}
       GROK_BOT_ANALYST: ${GROK_BOT_ANALYST:-analyst-demo}
+      GROK_BOT_KEYS: ${GROK_BOT_KEYS:-}
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:
