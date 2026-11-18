@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from simulator.errors import SimulatorError
 from simulator.library import (
     BURST_RECIPE,

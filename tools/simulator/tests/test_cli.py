@@ -12,7 +12,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qsl
 
 import pytest
-
 from simulator.cli import main
 from simulator.errors import SimulatorError
 from simulator.library import SCENARIOS, resolve_scenario

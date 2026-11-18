@@ -13,9 +13,9 @@ from __future__ import annotations
 import json
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from importlib.resources import files
-from typing import Callable
 
 from simulator.errors import SimulatorError
 
