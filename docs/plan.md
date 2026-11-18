@@ -9,6 +9,7 @@ Timeline: design pack today (Wed 18 Nov 2026), demo Mon 23 Nov 2026.
 ## Milestones
 
 ```mermaid
+%% name: plan-gantt
 gantt
   title Agentic Triage - build to demo (SGT)
   dateFormat YYYY-MM-DD
@@ -24,6 +25,8 @@ gantt
   M5 Demo hardening                 :m5, 2026-11-22, 1d
   Presentation                      :milestone, 2026-11-23, 0d
 ```
+
+**Caption.** Milestones from the design pack (M0, done) to the Monday demo. M3 is the must-have line, M4 (Grok Bot) is the differentiator. Each milestone's exit criterion is in the table below.
 
 | Milestone | Exit criterion (demoable) |
 |---|---|
@@ -41,6 +44,7 @@ OpenAPI spec, the agent (T09-T12) builds against fixtures and mocks, and the bac
 against the schemas, all at the same time. Integration happens at T13 (worker) and T21/T23 (tests).
 
 ```mermaid
+%% name: plan-ticket-dependencies
 flowchart LR
   T01 --> T02 & T03 & T06
   T03 --> T04 & T05 & T10
@@ -56,6 +60,8 @@ flowchart LR
   classDef crit fill:#ffe0e0,stroke:#c00
   class T01,T03,T04,T14,T15,T16,T20,T23,T25 crit
 ```
+
+**Caption.** Ticket dependency graph with the critical path in red. Because every ticket names the contract it implements (table below), frontend, agent and backend tickets run in parallel against mocks and only meet at T13 (worker), T21 (contract tests) and T23 (E2E).
 
 Critical path (red): T01 → T03 → T04 → T14 → T15 → T16 → T23 → T25 (with T20 joining at T23).
 
@@ -75,7 +81,7 @@ Critical path (red): T01 → T03 → T04 → T14 → T15 → T16 → T23 → T25
 
 | ID | Title | Owner | Milestone | Depends on | Contract |
 |---|---|---|---|---|---|
-| T01 | Repo scaffolding and docker-compose stack | DevOps | M1 | - | `docs/architecture/deployment.md` |
+| T01 | Repo scaffolding and docker-compose stack | DevOps | M1 | - | `docs/architecture/02-containers-deployment.md` |
 | T02 | CI pipeline (contracts gate, lint, unit, contract tests) | DevOps | M1 | T01 | `docs/testing.md#ci` |
 | T03 | Postgres schema and migrations per ER diagram | Data/DB engineer | M1 | T01 | `docs/uml/er-diagram.md` |
 | T04 | Queue repository with SKIP LOCKED claims and leases | Data/DB engineer | M1 | T03 | `contracts/openapi.yaml#claimNext, #botClaim` |
@@ -91,18 +97,18 @@ Critical path (red): T01 → T03 → T04 → T14 → T15 → T16 → T23 → T25
 | T14 | Case API with state-machine enforcement | Backend engineer | M3 | T04, T05, T06 | `contracts/openapi.yaml#tag/cases, docs/uml/state-machine.md` |
 | T15 | Actions API (propose/approve/reject) and mock executor | Backend engineer | M3 | T14 | `contracts/schemas/action.schema.json, contracts/openapi.yaml#tag/actions` |
 | T16 | Grok Bot API (keys, runs, queue, claim, enrichments, proposals) | Backend engineer | M4 | T14, T15 | `contracts/openapi.yaml#tag/bot` |
-| T17 | Grok Bot routine and triage tool wrapper (MCP + REST) | Triage-Agent/ML engineer | M4 | T16 | `contracts/openapi.yaml#tag/bot, docs/uml/seq-grokbot-routine.md` |
+| T17 | Grok Bot routine and triage tool wrapper (MCP + REST) | Triage-Agent/ML engineer | M4 | T16 | `contracts/openapi.yaml#tag/bot, docs/uml/seq-j2-analyst-assisted-triage.md, docs/architecture/06-components-bot-mcp-adapter.md` |
 | T18 | Typed API client and mock server for frontend | Frontend engineer | M1 | - | `contracts/openapi.yaml` |
 | T19 | Console: queue and case detail | Frontend engineer | M3 | T18 | `contracts/openapi.yaml#tag/cases` |
 | T20 | Console: approvals inbox, audit timeline, bot activity | Frontend engineer | M4 | T19 | `contracts/openapi.yaml#tag/actions` |
 | T21 | Contract tests (Schemathesis + Pact consumer) | QA/contract-test engineer | M3 | T14, T18 | `contracts/openapi.yaml` |
 | T22 | Golden-alert regression suite for the triage agent | QA/contract-test engineer | M2 | T08, T11 | `contracts/schemas/triage-decision.schema.json` |
-| T23 | End-to-end demo test | QA/contract-test engineer | M5 | T13, T16, T20 | `docs/uml/user-journeys.md` |
-| T24 | Observability and demo metrics | DevOps | M5 | T13 | `docs/architecture/deployment.md` |
+| T23 | End-to-end demo test | QA/contract-test engineer | M5 | T13, T16, T20 | `docs/uml/journey-j1-alert-ingestion-triage.md, docs/uml/journey-j2-analyst-assisted-triage.md` |
+| T24 | Observability and demo metrics | DevOps | M5 | T13 | `docs/architecture/02-containers-deployment.md` |
 | T25 | Demo runbook, seed data and presentation diagrams | Architect/Tech Lead | M5 | T23 | `docs/` |
 
 ### T01 - Repo scaffolding and docker-compose stack
-*Owner:* DevOps · *Milestone:* M1 Walking skeleton · *Depends on:* none · *Contract:* `docs/architecture/deployment.md`
+*Owner:* DevOps · *Milestone:* M1 Walking skeleton · *Depends on:* none · *Contract:* `docs/architecture/02-containers-deployment.md`
 
 - [ ] `make up` starts postgres(+pgvector), api, worker, console, simulator; `make down` cleans up
 - [ ] Health checks wired; `GET /v1/healthz` reachable on :8080
@@ -215,7 +221,7 @@ Critical path (red): T01 → T03 → T04 → T14 → T15 → T16 → T23 → T25
 - [ ] Rate limit per key; keys revocable from the console
 
 ### T17 - Grok Bot routine and triage tool wrapper (MCP + REST)
-*Owner:* Triage-Agent/ML engineer · *Milestone:* M4 Grok Bot 10x · *Depends on:* T16 · *Contract:* `contracts/openapi.yaml#tag/bot, docs/uml/seq-grokbot-routine.md`
+*Owner:* Triage-Agent/ML engineer · *Milestone:* M4 Grok Bot 10x · *Depends on:* T16 · *Contract:* `contracts/openapi.yaml#tag/bot, docs/uml/seq-j2-analyst-assisted-triage.md, docs/architecture/06-components-bot-mcp-adapter.md`
 
 - [ ] Routine prompt + schedule (every 10 min on shift) documented; one routine per analyst
 - [ ] Thin MCP server exposing list_my_queue, claim, add_enrichment, propose; falls back to curl/REST
@@ -254,13 +260,13 @@ Critical path (red): T01 → T03 → T04 → T14 → T15 → T16 → T23 → T25
 - [ ] Report shows escalate/downgrade/unchanged confusion matrix
 
 ### T23 - End-to-end demo test
-*Owner:* QA/contract-test engineer · *Milestone:* M5 Demo hardening · *Depends on:* T13, T16, T20 · *Contract:* `docs/uml/user-journeys.md`
+*Owner:* QA/contract-test engineer · *Milestone:* M5 Demo hardening · *Depends on:* T13, T16, T20 · *Contract:* `docs/uml/journey-j1-alert-ingestion-triage.md, docs/uml/journey-j2-analyst-assisted-triage.md`
 
 - [ ] Playwright: simulator burst -> downgrades auto-close -> escalation queued -> bot enriches + proposes -> analyst approves -> executor runs -> case resolved
 - [ ] Runs green 5 times in a row in CI
 
 ### T24 - Observability and demo metrics
-*Owner:* DevOps · *Milestone:* M5 Demo hardening · *Depends on:* T13 · *Contract:* `docs/architecture/deployment.md`
+*Owner:* DevOps · *Milestone:* M5 Demo hardening · *Depends on:* T13 · *Contract:* `docs/architecture/02-containers-deployment.md`
 
 - [ ] Structured JSON logs with alert_id/case_id correlation; OpenTelemetry traces ingest -> decision
 - [ ] Console metrics strip: alerts in, % auto-closed, escalations, bot proposals, approval latency
@@ -272,6 +278,19 @@ Critical path (red): T01 → T03 → T04 → T14 → T15 → T16 → T23 → T25
 - [ ] Rendered diagrams embedded in the slide deck; ADRs up to date
 
 <!-- TICKETS:END -->
+
+## Decision log
+
+| Date | Decision | Status |
+|---|---|---|
+| 2026-11-18 | Unchanged-severity routing policy (ADR-0005) | **Confirmed** by Vihag |
+| 2026-11-18 | Severity input via `?severity=` URL parameter or `result.severity` field (ADR-0005) | **Confirmed** by Vihag |
+| 2026-11-18 | Architect commits authored as `Sensei (Architect)` | **Confirmed** by Vihag |
+| 2026-11-18 | Split the architecture into 10 single-purpose diagrams; split journeys into J1 (machine) and J2 (analyst + bot) | Done in `docs/diagrams-v2` |
+
+Still open: how Grok Bot reaches the API (tunnel vs hosted VM); the Splunk token sits in the URL (HMAC/mTLS
+would need a custom alert action); the executor connector Protocol (gap 3 in `docs/architecture/contracts-map.md`). Gaps 1-2 (bot case
+bundle, bot-run listing) were closed by PR #33 on 2026-11-18.
 
 ## Risks
 

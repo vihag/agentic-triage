@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Agentic Triage API
-  version: 0.1.0
+  version: 0.2.0
   summary: Backend API for agentic re-triage of legacy SIEM (Splunk) alerts.
   description: |
     Contract owned by the Architect/Tech Lead and Backend engineer. Consumers: Splunk (ingest),
@@ -420,6 +420,29 @@ paths:
               schema: { $ref: '#/components/schemas/ClaimResponse' }
         '204': { description: Nothing to claim }
 
+  /v1/bot/cases/{case_id}/bundle:
+    get:
+      tags: [bot]
+      operationId: botGetCaseBundle
+      summary: Read-only bundle of one case for the bot (Case, decision, EvidencePack, NextStepsPack, proposed actions)
+      description: |
+        Bot-only and read-only. Returns 403 (and emits an `auth.denied` AuditEvent) unless the case's
+        `assignee` equals the bot key's `on_behalf_of` analyst. Does not claim, lock or modify the case.
+        Added in contract change "botGetCaseBundle and listBotRuns" (unblocks J2 "read the full case").
+      security: [ { botApiKey: [] } ]
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
+      responses:
+        '200':
+          description: Case bundle
+          headers:
+            ETag: { schema: { type: string }, description: Case version }
+          content:
+            application/json:
+              schema: { $ref: './schemas/case-bundle.schema.json' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+
   /v1/bot/cases/{case_id}/enrichments:
     post:
       tags: [bot]
@@ -458,6 +481,34 @@ paths:
           content:
             application/json:
               schema: { $ref: './schemas/next-steps-pack.schema.json' }
+        '403': { $ref: '#/components/responses/Problem' }
+
+  /v1/bot-runs:
+    get:
+      tags: [bot]
+      operationId: listBotRuns
+      summary: Console view of Grok Bot routine runs (bot activity)
+      description: |
+        Analyst-only. Lists BotRuns newest first. Filters combine with AND. Bot keys cannot call this.
+        Added in contract change "botGetCaseBundle and listBotRuns" (unblocks the console bot-activity view).
+      security: [ { analystAuth: [] } ]
+      parameters:
+        - { name: on_behalf_of, in: query, description: Analyst id the bot acts for, schema: { type: string } }
+        - { name: bot_id, in: query, schema: { type: string } }
+        - { name: case_id, in: query, description: Runs that touched this case, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string, enum: [running, succeeded, failed, partial] } }
+        - { name: started_after, in: query, schema: { type: string, format: date-time } }
+        - { name: started_before, in: query, schema: { type: string, format: date-time } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Page of bot runs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BotRunPage' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
 
 components:
@@ -580,15 +631,14 @@ components:
               subject: { type: string }
               body: { type: string }
     BotRun:
+      $ref: './schemas/bot-run.schema.json'
+    BotRunPage:
       type: object
-      required: [run_id, bot_id, on_behalf_of, status, started_at]
+      required: [items]
       properties:
-        run_id: { type: string, format: uuid }
-        bot_id: { type: string }
-        on_behalf_of: { type: string }
-        routine_id: { type: string }
-        status: { type: string, enum: [running, succeeded, failed, partial] }
-        started_at: { type: string, format: date-time }
-        finished_at: { type: [string, 'null'], format: date-time }
-        cases_processed: { type: integer }
-        summary: { type: string }
+        items:
+          type: array
+          items: { $ref: './schemas/bot-run.schema.json' }
+        next_cursor: { type: [string, 'null'] }
+    CaseBundle:
+      $ref: './schemas/case-bundle.schema.json'

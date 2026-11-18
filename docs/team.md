@@ -5,6 +5,7 @@ directed by the Architect; in a real engagement they map 1:1 to people. Roles ar
 they own** (code + contracts) so two roles never edit the same thing without a review.
 
 ```mermaid
+%% name: team-roles
 flowchart TB
   ARCH[Architect / Tech Lead<br/>owns contracts, ADRs, plan]
   BE[Backend engineer<br/>API, worker, auth]
@@ -19,6 +20,8 @@ flowchart TB
   BE -. uses repositories .-> DB
   QA -. verifies .-> BE & AG & FE
 ```
+
+**Caption.** The seven roles and the contract dependencies between them (dotted arrows = "consumes a contract owned by"). The matrix below says exactly which files each role owns or consumes. Ownership is enforced by `.github/CODEOWNERS` and the contract gate (`scripts/validate_contracts.py`).
 
 ## Contract ownership matrix
 
@@ -84,3 +87,5 @@ O = owns (only role that may change it, via PR + ADR note) · C = consumes (must
 2. **Mocks are first-class.** Every consumer can build against a mock of its provider on day one (Prism for the API, `MockFuzzyMatcher`/`MockLLMClient` for AI, simulator for Splunk).
 3. **Small PRs per ticket**, branch `t<NN>-<slug>`, squash-merge to `main`, conventional commits.
 4. **Daily integration** at 18:00 SGT: Architect merges, runs E2E, re-plans.
+5. **Commit identity:** commits made by the Architect agent are authored as `Sensei (Architect)
+   <sensei@agentic-triage.local>`. Confirmed by Vihag, 2026-11-18.

@@ -9,7 +9,9 @@ Checks
   3. Every example in contracts/examples/invalid FAILS validation (negative tests
      that pin down invariants, e.g. a Grok Bot can never be an approver).
   4. contracts/openapi.yaml is a valid OpenAPI 3.1 document with all $refs
-     (including the external JSON Schemas) resolvable, plus house lint rules.
+     (including the external JSON Schemas) resolvable, plus house lint rules and an
+     explicit per-operation auth policy (bot-only vs analyst-only; no bot-auth op can
+     approve/reject/execute; bot read-only ops are GET).
   5. contracts/agent/interfaces.py imports cleanly (the agent's Python contract).
   6. plan/issues.json is in sync with plan/tickets.yaml.
 Exit code 0 = all good.
@@ -95,7 +97,8 @@ def check_examples(registry, schemas) -> None:
                 ok(f"{ex.name} -> {sf}")
         except Exception as e:  # noqa: BLE001
             fail(f"{ex.name}: {e}")
-    required = {"alert", "triage-decision", "evidence-pack", "next-steps-pack", "case", "audit-event", "action", "splunk-webhook"}
+    required = {"alert", "triage-decision", "evidence-pack", "next-steps-pack", "case", "audit-event", "action",
+                "splunk-webhook", "bot-run", "case-bundle"}
     missing = {f"{r}.schema.json" for r in required} - covered
     if missing:
         fail(f"schemas with no positive example: {sorted(missing)}")
@@ -146,6 +149,55 @@ def check_openapi() -> None:
                 fail(f"{path}: must be versioned under /v1/")
     ok(f"lint: {len(op_ids)} operations have unique operationIds, tags, /v1 prefix")
     ok("lint: approve/reject are analystAuth-only; /v1/bot/* are botApiKey-only")
+    check_auth_policy(spec)
+
+
+# Explicit auth policy per operation. A new operation must be added here, so every
+# auth decision is reviewed in the contract PR that introduces it.
+BOT_ONLY = {"botStartRun", "botFinishRun", "botListQueue", "botClaim", "botGetCaseBundle",
+            "botAddEnrichment", "botPropose"}
+ANALYST_ONLY = {"approveAction", "rejectAction", "listBotRuns"}
+BOT_READ_ONLY = {"botGetCaseBundle", "botListQueue"}
+DECISION_WORDS = ("approve", "reject", "execute", "decide")
+
+
+def check_auth_policy(spec: dict) -> None:
+    global_sec = spec.get("security", [])
+    bot_ops, problems = [], []
+    for path, item in spec["paths"].items():
+        for method, op in item.items():
+            if method not in {"get", "post", "put", "patch", "delete"}:
+                continue
+            oid = op["operationId"]
+            sec = op.get("security", global_sec)
+            schemes = {name for req in sec for name in req}
+            if oid in BOT_ONLY:
+                if "security" not in op or sec != [{"botApiKey": []}]:
+                    problems.append(f"{oid}: must declare security [botApiKey] explicitly")
+                if not path.startswith("/v1/bot/"):
+                    problems.append(f"{oid}: bot-only operations must live under /v1/bot/")
+            if oid in ANALYST_ONLY and ("security" not in op or sec != [{"analystAuth": []}]):
+                problems.append(f"{oid}: must declare security [analystAuth] explicitly")
+            if oid in BOT_READ_ONLY and method != "get":
+                problems.append(f"{oid}: bot read-only operation must be GET")
+            if "botApiKey" in schemes:
+                bot_ops.append(oid)
+                if oid not in BOT_ONLY:
+                    problems.append(f"{oid}: accepts botApiKey but is not in the reviewed BOT_ONLY list")
+                text = f"{oid} {path}".lower()
+                if any(w in text for w in DECISION_WORDS):
+                    problems.append(f"{oid}: a bot-auth operation must never approve/reject/execute ({path})")
+            if any(w in path.lower() for w in ("/approve", "/reject")) and "botApiKey" in schemes:
+                problems.append(f"{oid}: approve/reject path reachable with botApiKey")
+    missing = (BOT_ONLY | ANALYST_ONLY) - {op["operationId"] for it in spec["paths"].values()
+                                           for m, op in it.items() if isinstance(op, dict) and "operationId" in op}
+    if missing:
+        problems.append(f"operations in auth policy but not in spec: {sorted(missing)}")
+    for p in problems:
+        fail(f"auth policy: {p}")
+    if not problems:
+        ok(f"auth policy: {len(BOT_ONLY)} bot-only ops explicit + under /v1/bot/, {len(ANALYST_ONLY)} analyst-only ops explicit "
+           f"(incl. listBotRuns), botGetCaseBundle is GET/read-only, none of {len(bot_ops)} bot-auth ops can approve/reject")
 
 
 def check_agent_interfaces() -> None:

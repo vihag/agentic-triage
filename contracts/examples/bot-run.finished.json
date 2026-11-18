@@ -1,0 +1,15 @@
+{
+  "run_id": "dddddddd-0001-4ddd-8ddd-dddddddddddd",
+  "bot_id": "grokbot-priya",
+  "on_behalf_of": "analyst-priya",
+  "routine_id": "triage-my-queue-every-10m",
+  "trigger": "schedule",
+  "status": "succeeded",
+  "started_at": "2026-11-18T02:49:30Z",
+  "finished_at": "2026-11-18T02:50:40Z",
+  "cases_processed": 1,
+  "case_ids": ["22222222-2222-4222-8222-222222222222"],
+  "proposals_made": 1,
+  "enrichments_added": 1,
+  "summary": "Claimed 1 case, added identity context for jdoe, proposed disable_user for approval."
+}
