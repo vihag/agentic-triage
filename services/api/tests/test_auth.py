@@ -37,6 +37,10 @@ _IMPLEMENTED_SLICE = frozenset(
         "proposeAction",
         "approveAction",
         "rejectAction",
+        "botListQueue",
+        "botClaim",
+        "botAddEnrichment",
+        "botPropose",
     }
 )
 

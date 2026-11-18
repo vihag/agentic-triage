@@ -2,7 +2,8 @@
 
 healthz is implemented. approve and reject enforce the analyst-only guard.
 Every other operation returns 501 after its auth scheme succeeds, including
-botGetCaseBundle and listBotRuns. Building the bundle and listing runs is T16.
+botGetCaseBundle and listBotRuns. The bot queue slice (list/claim/enrich/propose)
+is implemented in T16.
 """
 
 from __future__ import annotations
@@ -23,6 +24,12 @@ from app.action_handlers import (
     reject_action_handler,
 )
 from app.auth import enforce
+from app.bot_handlers import (
+    bot_add_enrichment_handler,
+    bot_claim_handler,
+    bot_list_queue_handler,
+    bot_propose_handler,
+)
 from app.case_handlers import (
     assign_case_handler,
     claim_next_handler,
@@ -141,6 +148,20 @@ async def dispatch(
             if case_id is None or action_id is None:
                 return not_implemented(request, operation.operation_id)
             return await reject_action_handler(request, case_id, action_id)
+        case "botListQueue":
+            return await bot_list_queue_handler(request)
+        case "botClaim":
+            return await bot_claim_handler(request)
+        case "botAddEnrichment":
+            case_id = _path_param(request, "case_id")
+            if case_id is None:
+                return not_implemented(request, operation.operation_id)
+            return await bot_add_enrichment_handler(request, case_id)
+        case "botPropose":
+            case_id = _path_param(request, "case_id")
+            if case_id is None:
+                return not_implemented(request, operation.operation_id)
+            return await bot_propose_handler(request, case_id)
         case _:
             return not_implemented(request, operation.operation_id)
 

@@ -27,6 +27,32 @@ class IllegalTransitionError(Exception):
         super().__init__(f"cannot transition {from_status} -> {to_status}")
 
 
+def list_bot_queue(
+    conn: Connection,
+    *,
+    analyst_id: str,
+    bot_id: str,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    capped = min(max(limit, 1), 20)
+    rows = conn.execute(
+        text(
+            """
+            SELECT document FROM cases
+            WHERE assignee = :assignee
+              AND (
+                status = 'queued'
+                OR (status = 'claimed' AND claimed_by->>'id' = :bot_id)
+              )
+            ORDER BY priority DESC, created_at ASC
+            LIMIT :limit
+            """
+        ),
+        {"assignee": analyst_id, "bot_id": bot_id, "limit": capped},
+    ).scalars()
+    return [load_json(row) for row in rows]
+
+
 def list_cases(
     conn: Connection,
     *,

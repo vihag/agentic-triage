@@ -72,6 +72,76 @@ def save_evidence_pack(
     )
 
 
+def append_evidence_item(
+    conn: Connection,
+    evidence_pack_id: str,
+    item: dict[str, Any],
+    *,
+    actor: Mapping[str, Any],
+    summary_suffix: str | None = None,
+) -> dict[str, Any]:
+    pack = get_evidence_pack(conn, evidence_pack_id)
+    items = list(pack.get("items") or [])
+    items.append(item)
+    version = int(pack["version"]) + 1
+    summary = str(pack["summary"])
+    if summary_suffix:
+        summary = f"{summary}\n\n{summary_suffix}"
+    updated = {**pack, "items": items, "version": version, "summary": summary}
+    position = len(items) - 1
+    conn.execute(
+        text(
+            """
+            UPDATE evidence_packs SET
+                version = :version,
+                summary = :summary,
+                document = CAST(:document AS jsonb)
+            WHERE evidence_pack_id = CAST(:evidence_pack_id AS uuid)
+            """
+        ),
+        {
+            "evidence_pack_id": evidence_pack_id,
+            "version": version,
+            "summary": summary,
+            "document": dump_json(updated),
+        },
+    )
+    data = item.get("data")
+    conn.execute(
+        text(
+            """
+            INSERT INTO evidence_items (
+                evidence_id, evidence_pack_id, position, kind, title, source,
+                added_by, data, collected_at
+            ) VALUES (
+                :evidence_id, CAST(:evidence_pack_id AS uuid), :position, :kind, :title,
+                :source, CAST(:added_by AS jsonb), CAST(:data AS jsonb), :collected_at
+            )
+            """
+        ),
+        {
+            "evidence_id": item["evidence_id"],
+            "evidence_pack_id": evidence_pack_id,
+            "position": position,
+            "kind": item["kind"],
+            "title": item["title"],
+            "source": item["source"],
+            "added_by": dump_json(item["added_by"]),
+            "data": None if data is None else dump_json(data),
+            "collected_at": parse_ts(item["collected_at"]),
+        },
+    )
+    record_event(
+        conn,
+        event_type="evidence.appended",
+        actor=dict(actor),
+        case_id=pack["case_id"],
+        alert_id=pack.get("alert_id"),
+        data={"evidence_pack_id": evidence_pack_id, "version": version},
+    )
+    return updated
+
+
 def get_evidence_pack(conn: Connection, evidence_pack_id: str) -> dict[str, Any]:
     document = conn.execute(
         text(
