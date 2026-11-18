@@ -1,0 +1,24 @@
+name: contracts
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  contract-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: python scripts/validate_contracts.py
+  mermaid:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm i -g @mermaid-js/mermaid-cli
+      - run: MMDC=mmdc bash scripts/render_mermaid.sh

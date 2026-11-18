@@ -1,0 +1,9 @@
+# Contract changes need the Architect plus consuming roles (see docs/team.md).
+/contracts/                         @architect
+/contracts/openapi.yaml             @architect @backend @frontend @qa
+/contracts/schemas/triage-decision* @agent @backend @frontend
+/contracts/schemas/evidence-pack*   @agent @backend @frontend
+/contracts/schemas/next-steps-pack* @agent @backend @frontend
+/contracts/schemas/audit-event*     @data @backend
+/contracts/agent/                   @agent @backend
+/docs/adr/                          @architect
