@@ -64,3 +64,48 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+
+  # Package suites with their own pyproject (T08 simulator, T09 rule engine,
+  # T03-T05 db). The root pytest job only collects services/api/tests.
+  packages:
+    needs: contracts
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: triage
+          POSTGRES_PASSWORD: local-dev-postgres-password
+          POSTGRES_DB: triage
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U triage -d triage"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: agent (rule engine)
+        working-directory: services/agent
+        run: |
+          pip install -e ".[dev]"
+          ruff check .
+          mypy
+          pytest
+      - name: simulator
+        working-directory: tools/simulator
+        run: |
+          pip install -e ".[dev]"
+          pytest
+      - name: db (migrations, repositories, audit chain)
+        if: hashFiles('db/pyproject.toml') != ''
+        working-directory: db
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://triage:local-dev-postgres-password@localhost:5432/triage
+        run: |
+          pip install -r requirements-dev.txt
+          pytest
