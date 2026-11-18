@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import text
@@ -12,7 +12,7 @@ from triage_db.jsonutil import dump_json, load_json, parse_ts
 
 
 def _stamp(moment: datetime) -> str:
-    return moment.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return moment.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def ensure_siem(conn: Connection, instance_id: str, kind: str) -> None:
@@ -86,7 +86,7 @@ def save_bot_run(
     finished_at: datetime | None = None,
     on_behalf_of: str = "analyst-priya",
 ) -> None:
-    moment = started_at or datetime.now(timezone.utc)
+    moment = started_at or datetime.now(UTC)
     save_bot_run_document(
         conn,
         {

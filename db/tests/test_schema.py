@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
-
 from triage_db.repositories import save_bot_credential, save_bot_run, save_incident, save_rule
 
 ER_TABLES = {
@@ -102,7 +101,7 @@ def test_reference_rows(conn: Connection) -> None:
         bot_id="grokbot-priya",
         routine_id="triage-routine",
         status="running",
-        started_at=datetime(2026, 11, 18, 2, 40, tzinfo=timezone.utc),
+        started_at=datetime(2026, 11, 18, 2, 40, tzinfo=UTC),
     )
     assert conn.execute(text("SELECT count(*) FROM rules")).scalar_one() == 1
     assert conn.execute(text("SELECT on_shift FROM analysts WHERE analyst_id = 'analyst-priya'")).scalar_one() is False

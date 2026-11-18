@@ -7,7 +7,6 @@ from psycopg.errors import InsufficientPrivilege
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import ProgrammingError
-
 from triage_db.repositories import save_audit_event
 
 

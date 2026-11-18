@@ -15,7 +15,6 @@ from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.pool import NullPool
-
 from triage_db.roles import APP_PASSWORD, APP_ROLE
 
 DB_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

@@ -8,7 +8,6 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import NullPool
-
 from tests.conftest import ADMIN_URL, DB_DIR, normalize_url
 
 MIG_DB = "triage_mig"

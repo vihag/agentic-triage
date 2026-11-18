@@ -10,7 +10,6 @@ and the append-only grant on audit_events for the triage_app role.
 
 from alembic import op
 from sqlalchemy import text
-
 from triage_db.roles import APP_PASSWORD, APP_ROLE
 
 revision = "0001_initial_schema"

@@ -7,7 +7,6 @@ from pathlib import Path
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
-
 from tests.schema_check import assert_matches_example_schema
 from triage_db.repositories import (
     compose_case_bundle,
