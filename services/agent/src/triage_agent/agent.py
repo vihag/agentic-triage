@@ -6,12 +6,18 @@ Pack builders are T12. This type implements ``TriageAgent.triage`` only.
 from __future__ import annotations
 
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from triage_agent.contract import DefaultRoutingPolicy, FuzzyMatcher, TriageContext
+from triage_agent.contract import (
+    DefaultRoutingPolicy,
+    FuzzyMatcher,
+    RoutingPolicy,
+    RulePlugin,
+    TriageContext,
+)
 from triage_agent.engine import RuleEngine
 from triage_agent.fuzzy.fallback import match_or_rules_only
 from triage_agent.routing import RoutingConfig, build_decision, validate_alert
@@ -30,7 +36,7 @@ class DefaultTriageAgent:
         matcher: FuzzyMatcher,
         *,
         engine: RuleEngine | None = None,
-        policy: DefaultRoutingPolicy | None = None,
+        policy: RoutingPolicy | None = None,
         config: RoutingConfig | None = None,
         clock: Callable[[], datetime] | None = None,
         monotonic: Callable[[], float] | None = None,
@@ -69,7 +75,18 @@ class DefaultTriageAgent:
             decision_id=self._new_id(),
             decided_at=_iso(self._clock()),
             latency_ms=max(0, int(elapsed * 1000)),
+            certainties=plugin_certainties(self.engine.rules),
         )
+
+
+def plugin_certainties(rules: Sequence[RulePlugin]) -> dict[str, float]:
+    """Read ``certainty`` from each plugin. Rules that omit it use the default."""
+    found: dict[str, float] = {}
+    for rule in rules:
+        value = getattr(rule, "certainty", None)
+        if isinstance(value, float):
+            found[rule.rule_id] = value
+    return found
 
 
 def _utc_now() -> datetime:

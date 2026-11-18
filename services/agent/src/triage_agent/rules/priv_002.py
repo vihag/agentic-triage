@@ -29,6 +29,7 @@ class PrivilegedUser:
     rule_id = _RULE_ID
     version = _VERSION
     priority = 20
+    certainty = 0.8
 
     def applies_to(self, alert: Mapping[str, Any]) -> bool:
         return bool(users_of(alert))

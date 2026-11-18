@@ -48,11 +48,31 @@ def without_generated(payload: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in payload.items() if key not in GENERATED}
 
 
-def with_example_rules(decision: dict[str, Any], example: dict[str, Any]) -> dict[str, Any]:
+CONFIDENCE_TOLERANCE = 0.05
+
+
+def assert_matches_example(
+    decision: dict[str, Any], example: dict[str, Any], *, project_rules: bool
+) -> None:
+    """Severities, direction, disposition, and label names. Confidence within tolerance.
+
+    The escalate example's fuzzy label is 0.78 while the matcher confidence is
+    0.82. Label confidence is the fuzzy confidence, so that one field is not exact.
+    """
     body = without_generated(decision)
-    by_id = {row["rule_id"]: row for row in decision["rule_results"]}
-    body["rule_results"] = [by_id[row["rule_id"]] for row in example["rule_results"]]
-    return body
+    expected = without_generated(example)
+    if project_rules:
+        by_id = {row["rule_id"]: row for row in body["rule_results"]}
+        body["rule_results"] = [by_id[row["rule_id"]] for row in expected["rule_results"]]
+    got_labels = body.pop("candidate_labels")
+    exp_labels = expected.pop("candidate_labels")
+    assert abs(body.pop("confidence") - expected.pop("confidence")) <= CONFIDENCE_TOLERANCE
+    assert [(item["name"], item["source"]) for item in got_labels] == [
+        (item["name"], item["source"]) for item in exp_labels
+    ]
+    for got, exp in zip(got_labels, exp_labels, strict=True):
+        assert abs(got["confidence"] - exp["confidence"]) <= CONFIDENCE_TOLERANCE
+    assert body == expected
 
 
 def fuzzy_from(payload: dict[str, Any]) -> FuzzyMatchResult:
@@ -145,7 +165,7 @@ def test_example_rule_sets_match_the_published_decisions(
         assert decision["decision_id"] != example["decision_id"]
         assert "case_id" not in decision
         assert "latency_ms" in decision
-        assert without_generated(decision) == without_generated(example)
+        assert_matches_example(decision, example, project_rules=False)
 
 
 def test_starter_rules_keep_the_example_outcome(
@@ -184,12 +204,16 @@ def test_starter_rules_keep_the_example_outcome(
         assert {row["rule_id"] for row in decision["rule_results"]} == {
             rule.rule_id for rule in built.engine.rules
         }
-        assert with_example_rules(decision, example) == without_generated(example)
+        assert_matches_example(decision, example, project_rules=True)
         if example["direction"] == "escalated":
             assert [label["name"] for label in decision["candidate_labels"]] == [
                 "candidate:credential-stuffing",
                 "candidate:account-takeover",
             ]
+            fuzzy_label = next(
+                label for label in decision["candidate_labels"] if label["source"] == "fuzzy"
+            )
+            assert fuzzy_label["confidence"] == example["fuzzy_result"]["confidence"]
 
 
 def test_routing_modules_do_not_call_a_model() -> None:

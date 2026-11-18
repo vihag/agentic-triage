@@ -21,6 +21,7 @@ class KnownScanner:
     rule_id = _RULE_ID
     version = _VERSION
     priority = 70
+    certainty = 0.8
 
     def applies_to(self, alert: Mapping[str, Any]) -> bool:
         return bool(src_ips_of(alert))

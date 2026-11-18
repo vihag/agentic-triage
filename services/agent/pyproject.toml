@@ -8,9 +8,7 @@ version = "0.1.0"
 description = "In-process triage rules, fuzzy matcher, and severity routing. CI uses mocks, not a live model."
 requires-python = ">=3.12"
 dependencies = [
-    # 2.1's Cython cache-key walker calls an InternalTraversal enum when
-    # pytest-cov has installed a tracer, so the pgvector tests die in Alembic.
-    "SQLAlchemy>=2.0,<2.1",
+    "SQLAlchemy>=2.0,<3",
     "jsonschema>=4.23",
     "psycopg[binary]>=3.2,<4",
     "referencing>=0.35",

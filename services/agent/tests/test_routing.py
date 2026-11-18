@@ -10,7 +10,7 @@ import pytest
 from contracts.agent.interfaces import MockFuzzyMatcher
 from jsonschema import Draft202012Validator
 
-from triage_agent.agent import DefaultTriageAgent
+from triage_agent.agent import DefaultTriageAgent, plugin_certainties
 from triage_agent.contract import (
     DefaultRoutingPolicy,
     FuzzyMatchResult,
@@ -23,12 +23,17 @@ from triage_agent.contract import (
 from triage_agent.engine import RuleEngine
 from triage_agent.fuzzy.errors import FuzzyTimeout
 from triage_agent.fuzzy.fallback import GUARDRAIL, FuzzyOutcome
+from triage_agent.results import matched
 from triage_agent.routing import (
     AUTO_CLOSE_SAMPLE_GUARDRAIL,
     NEVER_AUTO_CLOSE_GUARDRAIL,
     RoutingConfig,
     build_decision,
+    in_auto_close_sample,
 )
+from triage_agent.rules.allow_011 import RULE as ALLOW_011
+from triage_agent.rules.auth_003 import RULE as AUTH_003
+from triage_agent.rules.priv_002 import RULE as PRIV_002
 from triage_agent.version import __version__, agent_version
 
 ALERT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
@@ -86,6 +91,7 @@ def decide(
     *,
     alert_id: str = ALERT,
     config: RoutingConfig = CONFIG,
+    certainties: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     if match is None:
         outcome = FuzzyOutcome(None, (GUARDRAIL,))
@@ -100,6 +106,7 @@ def decide(
         decision_id=DECISION_ID,
         decided_at=DECIDED_AT,
         latency_ms=0,
+        certainties=certainties,
     )
 
 
@@ -154,9 +161,10 @@ def test_routing_table_matches_adr_0005(decision_validator: Draft202012Validator
 
     closed = decide(
         "high",
-        [rule("ceiling", "low", rule_id="ALLOW-011-eicar-on-ci", labels=("benign:av-selftest",))],
+        [rule("ceiling", "low", rule_id=ALLOW_011.rule_id, labels=("benign:av-selftest",))],
         fuzzy("informational", 0.93),
         alert_id=PUBLISHED_DOWNGRADE,
+        certainties={ALLOW_011.rule_id: ALLOW_011.certainty},
     )
     assert closed["direction"] == "downgraded"
     assert closed["disposition"] == "auto_closed"
@@ -255,18 +263,29 @@ def test_auto_close_threshold_is_inclusive(decision_validator: Draft202012Valida
 def test_five_percent_sample_sends_auto_closes_to_review(
     decision_validator: Draft202012Validator,
 ) -> None:
-    rules = [rule("ceiling", "low", rule_id="ALLOW-011-eicar-on-ci")]
+    rules = [rule("ceiling", "low", rule_id=ALLOW_011.rule_id)]
     match = fuzzy("informational", 0.93)
-    published = decide("high", rules, match, alert_id=PUBLISHED_DOWNGRADE)
-    sampled = decide("high", rules, match, alert_id=SAMPLED)
+    published_certainty = {ALLOW_011.rule_id: ALLOW_011.certainty}
+    published = decide(
+        "high", rules, match, alert_id=PUBLISHED_DOWNGRADE, certainties=published_certainty
+    )
+    sampled = decide("high", rules, match, alert_id=SAMPLED, certainties=published_certainty)
     forced = decide(
         "high",
         rules,
         match,
         alert_id=PUBLISHED_DOWNGRADE,
         config=RoutingConfig(sample_rate=1),
+        certainties=published_certainty,
     )
-    disabled = decide("high", rules, match, alert_id=SAMPLED, config=RoutingConfig(sample_rate=0))
+    disabled = decide(
+        "high",
+        rules,
+        match,
+        alert_id=SAMPLED,
+        config=RoutingConfig(sample_rate=0),
+        certainties=published_certainty,
+    )
     assert published["disposition"] == "auto_closed"
     assert sampled["disposition"] == "enqueue_downgrade_review"
     assert sampled["policy"]["guardrails_triggered"] == [AUTO_CLOSE_SAMPLE_GUARDRAIL]
@@ -320,7 +339,7 @@ def test_fuzzy_clause_and_label_confidence_bounds(
     )
     assert below["final_severity"] == "high"
     assert "fuzzy confidence 0.1 < 0.75" in below["policy"]["rationale"]
-    assert below["candidate_labels"][1]["confidence"] == 0.0
+    assert below["candidate_labels"][1]["confidence"] == 0.1
     assert_valid(decision_validator, agrees)
     assert_valid(decision_validator, below)
 
@@ -349,12 +368,42 @@ def test_two_rule_certainties_are_averaged_before_the_fuzzy_mix() -> None:
     decision = decide(
         "low",
         [
-            rule("floor", "high", rule_id="AUTH-003-fail-then-success-external"),
-            rule("delta", delta=1, rule_id="PRIV"),
+            rule("floor", "high", rule_id=AUTH_003.rule_id),
+            rule("delta", delta=1, rule_id=PRIV_002.rule_id),
         ],
+        certainties={
+            AUTH_003.rule_id: AUTH_003.certainty,
+            PRIV_002.rule_id: PRIV_002.certainty,
+        },
     )
     assert decision["final_severity"] == "high"
     assert decision["confidence"] == 0.85
+
+
+def test_downgrade_just_below_the_gate_goes_to_review() -> None:
+    decision = decide(
+        "high",
+        [rule("ceiling", "low")],
+        fuzzy("low", 0.88),
+        config=RoutingConfig(sample_rate=0),
+    )
+    assert decision["confidence"] == 0.84
+    assert decision["disposition"] == "enqueue_downgrade_review"
+    assert "0.84 < 0.85" in decision["policy"]["rationale"]
+
+
+def test_unchanged_medium_is_queued() -> None:
+    decision = decide("medium", [], fuzzy("medium", 0.4))
+    assert decision["final_severity"] == "medium"
+    assert decision["direction"] == "unchanged"
+    assert decision["disposition"] == "enqueue_for_triage"
+    assert decision["candidate_labels"] == []
+
+
+def test_auto_close_sample_is_about_five_percent() -> None:
+    ids = [f"alert-{index:05d}" for index in range(10_000)]
+    hits = sum(in_auto_close_sample(alert_id, 0.05) for alert_id in ids)
+    assert 400 <= hits <= 600
 
 
 def test_fuzzy_only_nudge_is_one_level_and_copies_its_label() -> None:
@@ -445,6 +494,58 @@ class SpyMatcher:
         if self.payload is not None:
             return self.payload
         return fuzzy(str(alert["splunk_severity"]), 0.5)
+
+
+class _SoftCeiling:
+    rule_id = "SOFT-1"
+    version = "1.0.0"
+    priority = 1
+    certainty = 0.4
+
+    def applies_to(self, alert: object) -> bool:
+        return True
+
+    def evaluate(self, alert: object, ctx: object) -> RuleResult:
+        return matched(
+            self.rule_id,
+            self.version,
+            SeverityEffect("ceiling", "low"),
+            "soft ceiling",
+            labels=("benign:soft",),
+        )
+
+
+class _NoCertainty:
+    rule_id = "PLAIN-1"
+    version = "1.0.0"
+    priority = 2
+
+    def applies_to(self, alert: object) -> bool:
+        return False
+
+    def evaluate(self, alert: object, ctx: object) -> RuleResult:
+        return matched(self.rule_id, self.version, SeverityEffect("none"), "unused")
+
+
+def test_agent_reads_certainty_from_the_rule() -> None:
+    agent = DefaultTriageAgent(
+        SpyMatcher(fuzzy("informational", 1.0)),
+        engine=RuleEngine([_SoftCeiling(), _NoCertainty()]),
+        config=RoutingConfig(sample_rate=0),
+        clock=lambda: datetime(2026, 11, 18, 4, 0, tzinfo=UTC),
+        monotonic=lambda: 0.0,
+        new_id=lambda: DECISION_ID,
+    )
+    assert plugin_certainties(agent.engine.rules) == {"SOFT-1": 0.4}
+    decision = agent.triage(
+        {"alert_id": ALERT, "splunk_severity": "high"},
+        TriageContext(),
+    )
+    assert decision["confidence"] == 0.7
+    assert decision["disposition"] == "enqueue_downgrade_review"
+    assert decision["candidate_labels"] == [
+        {"name": "benign:soft", "source": "rule", "confidence": 0.4}
+    ]
 
 
 def test_agent_validates_before_calling_the_matcher() -> None:

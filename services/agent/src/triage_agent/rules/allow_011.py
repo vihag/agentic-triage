@@ -66,6 +66,7 @@ class EicarOnCi:
     rule_id = _RULE_ID
     version = _VERSION
     priority = 110
+    certainty = 0.97
 
     def applies_to(self, alert: Mapping[str, Any]) -> bool:
         if file_hashes_of(alert) or signature_of(alert):

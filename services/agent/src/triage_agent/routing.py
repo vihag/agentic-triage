@@ -15,8 +15,8 @@ from typing import Any, Literal, Never, cast
 
 from triage_agent.contract import (
     SEVERITY_ORDER,
-    DefaultRoutingPolicy,
     FuzzyMatchResult,
+    RoutingPolicy,
     RuleResult,
     Severity,
     SeverityEffect,
@@ -30,12 +30,8 @@ from triage_agent.version import agent_version
 Direction = Literal["escalated", "downgraded", "unchanged"]
 LabelSource = Literal["rule", "fuzzy", "llm", "analyst"]
 
-# Certainties that reproduce the published triage-decision examples when mixed
-# equally with the fuzzy confidence. Other matched severity rules use the default.
-RULE_CERTAINTY: dict[str, float] = {
-    "AUTH-003-fail-then-success-external": 0.9,
-    "ALLOW-011-eicar-on-ci": 0.97,
-}
+# Used when a matched rule did not declare ``certainty``. The value itself
+# lives on the rule plugin.
 DEFAULT_RULE_CERTAINTY = 0.8
 BASELINE_CONFIDENCE = 0.7
 NEVER_AUTO_CLOSE_GUARDRAIL = "never_auto_close"
@@ -50,6 +46,7 @@ class RoutingConfig:
     policy_id: str = "severity-routing"
     version: str = "2026-11-18"
     fuzzy_min_confidence: float = 0.75
+    auto_close_min_confidence: float = 0.85
     sample_rate: float = 0.05
 
 
@@ -73,18 +70,20 @@ def explanation_order(rules: Sequence[RuleResult]) -> list[RuleResult]:
 
 
 def decision_confidence(
-    rules: Sequence[RuleResult], fuzzy: FuzzyMatchResult | None
+    rules: Sequence[RuleResult],
+    fuzzy: FuzzyMatchResult | None,
+    certainties: Mapping[str, float],
 ) -> float:
-    certainties = [
-        RULE_CERTAINTY.get(rule.rule_id, DEFAULT_RULE_CERTAINTY)
+    values = [
+        certainties.get(rule.rule_id, DEFAULT_RULE_CERTAINTY)
         for rule in rules
         if rule.matched and rule.effect.op in _SEVERITY_OPS
     ]
-    if certainties and fuzzy is not None:
-        rule_certainty = sum(certainties) / len(certainties)
+    if values and fuzzy is not None:
+        rule_certainty = sum(values) / len(values)
         return _units((rule_certainty + fuzzy.confidence) / 2)
-    if certainties:
-        return _units(sum(certainties) / len(certainties))
+    if values:
+        return _units(sum(values) / len(values))
     if fuzzy is not None:
         return _units(fuzzy.confidence)
     return BASELINE_CONFIDENCE
@@ -106,19 +105,21 @@ def build_decision(
     rules: Sequence[RuleResult],
     outcome: FuzzyOutcome,
     *,
-    policy: DefaultRoutingPolicy,
+    policy: RoutingPolicy,
     config: RoutingConfig,
     decision_id: str,
     decided_at: str,
     latency_ms: int,
+    certainties: Mapping[str, float] | None = None,
 ) -> dict[str, Any]:
     """One TriageDecision. ``contracts/`` shapes the body; this fills it."""
     alert_id, original = validate_alert(alert)
     fuzzy = None if outcome.result is None else outcome.result
     ordered = explanation_order(rules)
+    known = dict(certainties or {})
     rule_severity = combine_severity(original, ordered, None, config.fuzzy_min_confidence)
     final = combine_severity(original, ordered, fuzzy, config.fuzzy_min_confidence)
-    confidence = decision_confidence(ordered, fuzzy)
+    confidence = decision_confidence(ordered, fuzzy, known)
     direction = direction_of(original, final)
     guardrails = _guardrails(ordered, fuzzy is None)
     never_auto_close = bool(guardrails)
@@ -139,7 +140,7 @@ def build_decision(
         "direction": direction,
         "disposition": disposition,
         "confidence": confidence,
-        "candidate_labels": _candidate_labels(direction, ordered, fuzzy, confidence),
+        "candidate_labels": _candidate_labels(direction, ordered, fuzzy, known),
         "rule_results": [_rule_payload(rule) for rule in ordered],
         "fuzzy_result": None if fuzzy is None else _fuzzy_payload(fuzzy),
         "policy": {
@@ -154,7 +155,6 @@ def build_decision(
                 ordered,
                 fuzzy,
                 guardrails,
-                policy,
                 config,
             ),
             "guardrails_triggered": list(guardrails),
@@ -194,7 +194,7 @@ def _candidate_labels(
     direction: Direction,
     rules: Sequence[RuleResult],
     fuzzy: FuzzyMatchResult | None,
-    confidence: float,
+    certainties: Mapping[str, float],
 ) -> list[dict[str, Any]]:
     # Unchanged enqueue carries no candidate label (ADR-0005). Escalation and
     # downgrade keep the labels the rules and the matcher actually produced.
@@ -205,13 +205,12 @@ def _candidate_labels(
     for rule in rules:
         if not rule.matched:
             continue
-        certainty = RULE_CERTAINTY.get(rule.rule_id, DEFAULT_RULE_CERTAINTY)
+        certainty = certainties.get(rule.rule_id, DEFAULT_RULE_CERTAINTY)
         for name in rule.labels:
             _add_label(labels, seen, name, "rule", certainty)
     if fuzzy is not None:
-        reflected = _units(min(1.0, max(0.0, (2 * fuzzy.confidence) - confidence)))
         for name in fuzzy.suggested_labels:
-            _add_label(labels, seen, name, "fuzzy", reflected)
+            _add_label(labels, seen, name, "fuzzy", _units(fuzzy.confidence))
     return labels
 
 
@@ -238,14 +237,13 @@ def _rationale(
     rules: Sequence[RuleResult],
     fuzzy: FuzzyMatchResult | None,
     guardrails: Sequence[str],
-    policy: DefaultRoutingPolicy,
     config: RoutingConfig,
 ) -> str:
     if direction == "escalated":
         return _escalated_rationale(original, final, rules, fuzzy, config)
     if direction == "downgraded":
         return _downgraded_rationale(
-            disposition, original, final, confidence, guardrails, policy, config
+            disposition, original, final, confidence, guardrails, config
         )
     if direction == "unchanged":
         return _unchanged_rationale(disposition, final, guardrails)
@@ -277,11 +275,10 @@ def _downgraded_rationale(
     final: Severity,
     confidence: float,
     guardrails: Sequence[str],
-    policy: DefaultRoutingPolicy,
     config: RoutingConfig,
 ) -> str:
     shown = _fmt(confidence)
-    threshold = _fmt(policy.AUTO_CLOSE_MIN_CONFIDENCE)
+    threshold = _fmt(config.auto_close_min_confidence)
     if disposition == "auto_closed":
         return (
             f"Downgraded {original}->{final} with confidence {shown} >= {threshold}, "
