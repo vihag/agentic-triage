@@ -74,6 +74,7 @@ class FailThenSuccessExternal:
     rule_id = _RULE_ID
     version = _VERSION
     priority = 30
+    certainty = 0.9
 
     def applies_to(self, alert: Mapping[str, Any]) -> bool:
         if mentions_fail_then_success(alert):

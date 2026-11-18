@@ -59,6 +59,7 @@ class TorEgress:
     rule_id = _RULE_ID
     version = _VERSION
     priority = 40
+    certainty = 0.8
 
     def applies_to(self, alert: Mapping[str, Any]) -> bool:
         if dest_ips_of(alert) or domains_of(alert):

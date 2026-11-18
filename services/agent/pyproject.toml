@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "triage-agent"
 version = "0.1.0"
-description = "In-process triage rules and fuzzy matcher. CI uses mocks, not a live model."
+description = "In-process triage rules, fuzzy matcher, and severity routing. CI uses mocks, not a live model."
 requires-python = ">=3.12"
 dependencies = [
     "SQLAlchemy>=2.0,<3",
@@ -44,6 +44,9 @@ testpaths = ["tests"]
 addopts = [
     "-q",
     "--cov=triage_agent.rules",
+    "--cov=triage_agent.routing",
+    "--cov=triage_agent.agent",
+    "--cov=triage_agent.version",
     "--cov-branch",
     "--cov-report=term-missing",
     "--cov-fail-under=100",
@@ -51,7 +54,6 @@ addopts = [
 
 [tool.coverage.run]
 branch = true
-source_pkgs = ["triage_agent.rules"]
 
 [tool.coverage.report]
 fail_under = 100
