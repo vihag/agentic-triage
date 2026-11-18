@@ -6,12 +6,16 @@ import json
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator, FormatChecker
+from referencing import Registry, Resource
+from referencing.jsonschema import DRAFT202012
 
 from triage_agent.contract import TriageContext
 from triage_agent.engine import RuleEngine
 
 REPO = Path(__file__).resolve().parents[3]
 EXAMPLES = REPO / "contracts" / "examples"
+SCHEMAS = REPO / "contracts" / "schemas"
 
 
 def load_example(name: str) -> dict:
@@ -42,4 +46,18 @@ def downgrade_alert() -> dict:
 def ci_context() -> TriageContext:
     return TriageContext(
         asset_inventory={"build-agent-07": {"crown_jewel": False, "group": "ci-build-agents"}}
+    )
+
+
+@pytest.fixture(scope="session")
+def decision_validator() -> Draft202012Validator:
+    registry: Registry = Registry()
+    for path in sorted(SCHEMAS.glob("*.schema.json")):
+        contents = json.loads(path.read_text())
+        resource = Resource.from_contents(contents, default_specification=DRAFT202012)
+        registry = registry.with_resource(path.name, resource)
+    return Draft202012Validator(
+        {"$ref": "triage-decision.schema.json"},
+        registry=registry,
+        format_checker=FormatChecker(),
     )

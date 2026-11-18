@@ -23,7 +23,10 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from contracts.agent.interfaces import (  # noqa: E402
+    SEVERITY_ORDER,
     DefaultRoutingPolicy,
+    Disposition,
+    FuzzyMatcher,
     FuzzyMatchResult,
     LLMClient,
     RulePlugin,
@@ -33,11 +36,15 @@ from contracts.agent.interfaces import (  # noqa: E402
     SimilarItem,
     TriageContext,
     combine_severity,
+    rank,
 )
 
 __all__ = [
+    "SEVERITY_ORDER",
     "DefaultRoutingPolicy",
+    "Disposition",
     "FuzzyMatchResult",
+    "FuzzyMatcher",
     "LLMClient",
     "RulePlugin",
     "RuleResult",
@@ -46,5 +53,6 @@ __all__ = [
     "SimilarItem",
     "TriageContext",
     "combine_severity",
+    "rank",
     "repo_root",
 ]
