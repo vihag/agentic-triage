@@ -1,0 +1,9 @@
+pytest>=8.3,<9
+httpx2>=2,<3
+schemathesis>=4.33,<5
+jsonschema>=4.23,<5
+pyyaml>=6.0,<7
+types-PyYAML>=6.0,<7
+types-jsonschema>=4.23
+ruff>=0.8
+mypy>=1.13
