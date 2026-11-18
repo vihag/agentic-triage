@@ -5,10 +5,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import pytest
 from alembic import command
 from alembic.config import Config
 from contracts.agent.interfaces import MockLLMClient
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.pool import NullPool
 
 from triage_agent.fuzzy.corpus import CORPUS
@@ -19,8 +21,13 @@ from triage_agent.fuzzy.seed import seed_corpus
 
 REPO = Path(__file__).resolve().parents[3]
 DB_DIR = REPO / "db"
-ADMIN_URL = os.environ.get("TEST_ADMIN_URL", "postgresql+psycopg://ubuntu@/postgres")
 TEST_DB = os.environ.get("TEST_FUZZY_DATABASE_NAME", "triage_fuzzy_test")
+_CANDIDATES = (
+    os.environ.get("TEST_ADMIN_URL"),
+    os.environ.get("TEST_DATABASE_URL"),
+    "postgresql+psycopg://ubuntu@/postgres",
+    "postgresql+psycopg://triage:local-dev-postgres-password@127.0.0.1:5432/triage",
+)
 JUDGMENT = {
     "suggested_severity": "high",
     "confidence": 0.82,
@@ -37,13 +44,31 @@ def _upgrade(url: str) -> None:
     command.upgrade(cfg, "head")
 
 
+def _admin_url() -> str:
+    errors: list[str] = []
+    for candidate in _CANDIDATES:
+        if not candidate:
+            continue
+        engine = create_engine(candidate, isolation_level="AUTOCOMMIT", poolclass=NullPool)
+        try:
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+            return candidate
+        except Exception as exc:
+            errors.append(f"{candidate}: {exc}")
+        finally:
+            engine.dispose()
+    pytest.skip("Postgres is not reachable: " + "; ".join(errors))
+
+
 def test_seed_embeds_at_least_thirty_rows_and_knn_finds_inc_2041() -> None:
-    admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT", poolclass=NullPool)
+    admin_url = _admin_url()
+    admin = create_engine(admin_url, isolation_level="AUTOCOMMIT", poolclass=NullPool)
     with admin.connect() as connection:
         connection.execute(text(f"DROP DATABASE IF EXISTS {TEST_DB} WITH (FORCE)"))
         connection.execute(text(f"CREATE DATABASE {TEST_DB}"))
     admin.dispose()
-    url = f"postgresql+psycopg://ubuntu@/{TEST_DB}"
+    url = make_url(admin_url).set(database=TEST_DB).render_as_string(hide_password=False)
     _upgrade(url)
     engine = create_engine(url, poolclass=NullPool)
     embedder = HashingEmbedder()
